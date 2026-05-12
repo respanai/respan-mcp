@@ -86,7 +86,7 @@ RESPONSE FIELDS:
         }
       }
 
-      const data = await c.client.traces.listTraces({
+      const result = await c.client.traces.listTraces({
         Authorization: c.auth,
         page_size: limit,
         page,
@@ -97,7 +97,7 @@ RESPONSE FIELDS:
         ...(Object.keys(bodyFilters).length > 0 ? { filters: bodyFilters } : {}),
       });
 
-      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
 
@@ -152,7 +152,7 @@ Use list_traces first to find trace_unique_id, then use this for full span tree.
     },
     async ({ trace_id, environment, start_time, end_time }) => {
       const c = requireClient(client);
-      const data = await c.client.traces.retrieveTrace({
+      const result = await c.client.traces.retrieveTrace({
         Authorization: c.auth,
         trace_unique_id: trace_id,
         ...(environment ? { environment } : {}),
@@ -160,49 +160,8 @@ Use list_traces first to find trace_unique_id, then use this for full span tree.
         ...(end_time ? { end_time } : {}),
       });
 
-      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
 
-  // --- Get Traces Summary ---
-  server.tool(
-    "get_traces_summary",
-    `Retrieve aggregated summary statistics for traces. Returns total_count, total_cost, total_tokens, avg_latency.
-
-Useful for getting quick insights into trace-level metrics without fetching all individual traces.
-
-PARAMETERS:
-- start_time: Start time in ISO 8601 format (required)
-- end_time: End time in ISO 8601 format (required)
-
-RESPONSE FIELDS:
-- total_count: Total number of traces matching filters
-- total_cost: Total cost in USD
-- total_prompt_tokens, total_completion_tokens, total_tokens: Aggregate token usage
-- average_cost, average_tokens: Per-trace averages
-- total_duration, average_duration: Duration metrics
-- total_span_count, average_span_count: Span count metrics
-- total_llm_call_count, average_llm_call_count: LLM call metrics
-- total_error_count, error_rate: Error metrics
-
-EXAMPLE:
-{
-  "start_time": "2025-01-01T00:00:00Z",
-  "end_time": "2025-01-31T23:59:59Z"
-}`,
-    {
-      start_time: z.string().describe("Start time in ISO 8601 format"),
-      end_time: z.string().describe("End time in ISO 8601 format")
-    },
-    async ({ start_time, end_time }) => {
-      const c = requireClient(client);
-      const data = await c.client.traces.getTracesSummary({
-        Authorization: c.auth,
-        start_time,
-        end_time,
-      });
-
-      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-    }
-  );
 }

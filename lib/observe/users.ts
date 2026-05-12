@@ -38,12 +38,23 @@ Use this to identify top users by cost, most active users, or find specific cust
     {
       page_size: z.number().optional().describe("Customers per page (1-50, default 20)"),
       page: z.number().optional().describe("Page number (default 1)"),
-      sort_by: z.enum(["customer_identifier", "-customer_identifier", "email", "-email", "first_seen", "-first_seen", "last_active_timeframe", "-last_active_timeframe", "number_of_requests", "-number_of_requests", "total_cost", "-total_cost", "total_tokens", "-total_tokens", "active_days", "-active_days", "average_latency", "-average_latency", "average_ttft", "-average_ttft"]).optional().describe("Sort field. Prefix with - for descending order."),
-      environment: z.string().optional().describe("Filter by environment: 'prod' or 'test'")
+      sort_by: z.enum([
+        "customer_identifier", "-customer_identifier",
+        "email", "-email",
+        "first_seen", "-first_seen",
+        "last_active_timeframe", "-last_active_timeframe",
+        "number_of_requests", "-number_of_requests",
+        "total_cost", "-total_cost",
+        "total_tokens", "-total_tokens",
+        "active_days", "-active_days",
+        "average_latency", "-average_latency",
+        "average_ttft", "-average_ttft"
+      ]).optional().describe("Sort field. Prefix with - for descending order. Default: -first_seen"),
+      environment: z.enum(["prod", "test"]).optional().describe("Filter by environment: 'prod' or 'test'")
     },
     async ({ page_size = 20, page = 1, sort_by = "-first_seen", environment }) => {
       const c = requireClient(client);
-      const data = await c.client.users.listCustomers({
+      const pageResult = await c.client.users.listCustomers({
         Authorization: c.auth,
         page_size: Math.min(page_size, 50),
         page,
@@ -51,7 +62,12 @@ Use this to identify top users by cost, most active users, or find specific cust
         ...(environment ? { environment } : {}),
       });
 
-      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+      // The Fern SDK returns a Page object with response/rawResponse/data.
+      // Extract just the paginated response to avoid triplicated output and leaked HTTP internals.
+      const response = (pageResult as any).response ?? (pageResult as any).data ?? pageResult;
+      // Strip filters_data metadata to reduce response size
+      if (response && typeof response === 'object') delete response.filters_data;
+      return { content: [{ type: "text" as const, text: JSON.stringify(response, null, 2) }] };
     }
   );
 
@@ -60,50 +76,34 @@ Use this to identify top users by cost, most active users, or find specific cust
     "get_customer_detail",
     `Retrieve detailed information about a specific customer including budget usage.
 
-Returns comprehensive customer data including:
+Returns customer profile and budget data:
 
 IDENTIFICATION:
+- id: Internal customer ID
 - customer_identifier: Your unique identifier for this customer
 - email: Customer email (if provided)
 - name: Customer name (if provided)
 - environment: Environment (prod/test)
+- organization_name: Owning organization name
 
 BUDGET & SPENDING:
-- period_budget: Budget limit for current period (USD)
+- period_budget: Budget limit for current period (USD, null if unlimited)
 - budget_duration: Budget period type (e.g., "monthly")
 - total_period_usage: Spending in current period (USD)
 - period_start: Current budget period start
 - period_end: Current budget period end (null if ongoing)
 - total_budget: Lifetime budget limit (null if unlimited)
-- total_usage: Lifetime total spending (USD)
-
-USAGE METRICS:
-- total_requests: Total number of API requests
-- total_prompt_tokens: Total input tokens used
-- total_completion_tokens: Total output tokens used
-- total_tokens: Total tokens (input + output)
-- total_cache_hits: Number of cache hits
-
-PERFORMANCE:
-- average_latency: Average response time in seconds
-- average_ttft: Average time to first token in seconds
-- average_monthly_cost: Average monthly spending
-
-ACTIVITY:
-- last_active: Last activity timestamp
-- created_at: Customer record creation time
-- updated_at: Last update timestamp
-- top_models: Most used models (object)
 
 OTHER:
-- metadata: Custom metadata (if set)
-- markup_percentage: Price markup for this customer
-- is_test: Whether this is a test customer
+- has_write_access: Whether customer has write access
+- updated_at: Last update timestamp
+
+NOTE: For usage metrics (requests, tokens, cost, latency), use get_spans_summary with a customer_identifier filter instead.
 
 Use list_customers first to find customer_identifier, then use this for full details.`,
     {
       customer_identifier: z.string().describe("Unique identifier of the customer (from list_customers)"),
-      environment: z.string().optional().describe("Environment: 'prod' or 'test' (default: 'prod')")
+      environment: z.enum(["prod", "test"]).optional().describe("Environment: 'prod' or 'test' (default: 'prod')")
     },
     async ({ customer_identifier, environment }) => {
       const c = requireClient(client);

@@ -19,7 +19,7 @@
     "@modelcontextprotocol/sdk": "^1.25.1",
     "@respan/instrumentation-vercel": "^1.0.1",
     "@respan/respan": "^2.0.1",
-    "@respan/respan-api": "^0.1.4",
+    "@respan/respan-api": "^0.1.16",
     "@tailwindcss/vite": "^4.2.2",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^6.0.1",

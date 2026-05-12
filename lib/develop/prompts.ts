@@ -28,13 +28,34 @@ Use get_prompt_detail to see full prompt content, or list_prompt_versions to see
       page_size: z
         .number()
         .optional()
-        .describe("Number of prompts per page (1-50, default 50)"),
+        .describe("Number of prompts per page (1-50, default 25)"),
+      page: z
+        .number()
+        .optional()
+        .describe("Page number (default 1)"),
     },
-    async () => {
+    async ({ page_size = 25, page = 1 }) => {
       const c = requireClient(client);
-      const data = await c.client.prompts.listPrompts({ Authorization: c.auth });
+      const data = await c.client.prompts.listPrompts({
+        Authorization: c.auth,
+        page_size: Math.min(page_size, 50),
+        page,
+      });
+
+      // Strip bloat from list response:
+      // 1. current_version.messages can contain base64 image data (use get_prompt_detail instead)
+      // 2. filters_data is backend filter metadata (~80KB) not useful for agents
+      const cleaned = JSON.parse(JSON.stringify(data));
+      delete cleaned.filters_data;
+      const results = cleaned?.results ?? [];
+      for (const prompt of results) {
+        if (prompt?.current_version?.messages) {
+          delete prompt.current_version.messages;
+        }
+      }
+
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(cleaned, null, 2) }],
       };
     }
   );
@@ -154,7 +175,7 @@ Use list_prompts to find prompt_id, then list_prompt_versions to find the versio
       const data = await c.client.prompts.retrievePromptVersion({
         Authorization: c.auth,
         prompt_id,
-        version: String(version),
+        version,
       });
       return {
         content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
@@ -267,11 +288,10 @@ Use list_prompts to find prompt_id, then list_prompt_versions to find the versio
       stop,
     }) => {
       const c = requireClient(client);
-      const messagesStr = messages.map((m: any) => JSON.stringify(m));
       const data = await c.client.prompts.createPromptVersion({
         Authorization: c.auth,
         prompt_id,
-        messages: messagesStr,
+        messages,
         model,
         ...(temperature !== undefined ? { temperature } : {}),
         ...(max_tokens !== undefined ? { max_tokens } : {}),
@@ -354,7 +374,7 @@ Use list_prompts to find prompt_id, then list_prompt_versions to find the versio
       const data = await c.client.prompts.updatePromptVersion({
         Authorization: c.auth,
         prompt_id,
-        version: String(version),
+        version,
         deploy: false,
         ...(messages !== undefined ? { messages } : {}),
         ...(model !== undefined ? { model } : {}),

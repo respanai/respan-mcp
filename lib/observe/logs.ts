@@ -86,7 +86,7 @@ EXAMPLE - find logs for a specific model and customer:
         }
       }
 
-      const data = await c.client.spans.listSpans({
+      const result = await c.client.spans.listSpans({
         Authorization: c.auth,
         operator: "AND",
         start_time: clampedStart,
@@ -101,6 +101,10 @@ EXAMPLE - find logs for a specific model and customer:
         filters: Object.keys(bodyFilters).length > 0 ? bodyFilters : undefined,
       });
 
+      // Extract just the data payload, excluding rawResponse HTTP internals
+      const data = (result as any).response ?? (result as any).data ?? result;
+      // Strip filters_data metadata to reduce response size
+      if (data && typeof data === 'object') delete (data as any).filters_data;
       return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
     }
   );
@@ -133,131 +137,6 @@ Use list_logs first to find the unique_id, then use this endpoint for full detai
     async ({ log_id }) => {
       const c = requireClient(client);
       const data = await c.client.spans.retrieveSpan({ Authorization: c.auth, unique_id: log_id });
-      return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-    }
-  );
-
-  // --- Create Log ---
-  server.tool(
-    "create_log",
-    `Create a new log entry for any type of LLM request using Respan's universal input/output design.
-
-CORE FIELDS:
-- input: Universal input field (string/object/array) - structure depends on log_type
-- output: Universal output field (string/object/array) - structure depends on log_type
-- log_type: Type of span - "chat" (default), "completion", "embedding", "transcription", "speech",
-            "workflow", "agent", "task", "tool", "function", "generation", "handoff", "guardrail", "custom"
-- model: Model used for inference (e.g., "gpt-4o-mini")
-
-TELEMETRY:
-- usage: Token usage object with prompt_tokens, completion_tokens, total_tokens
-- cost: Cost in USD (auto-calculated if not provided)
-- latency: Total request latency in seconds
-- time_to_first_token: TTFT in seconds
-- tokens_per_second: Generation speed
-
-METADATA & TRACKING:
-- metadata: Custom key-value pairs for analytics
-- customer_identifier: User/customer identifier
-- customer_params: Extended customer info (customer_identifier, name, email)
-- thread_identifier: Conversation thread ID
-- custom_identifier: Indexed custom identifier
-- group_identifier: Group related logs
-
-WORKFLOW & TRACING:
-- trace_unique_id: Link spans in distributed tracing
-- span_workflow_name: Workflow name
-- span_name: Span/task name
-- span_parent_id: Parent span ID for hierarchy
-
-CONFIGURATION:
-- temperature: Randomness control (0-2)
-- top_p: Nucleus sampling
-- max_tokens: Maximum tokens to generate
-- stop: Stop sequences array
-- stream: Whether response was streamed
-- prompt_id: Prompt template ID
-- response_format: Response format config
-
-ERROR HANDLING:
-- status_code: HTTP status code (default: 200)
-- error_message: Error description
-- status: Request status ("success", "error")
-- warnings: Warnings object
-
-EXAMPLE - Chat completion:
-{
-  "input": "[{\\"role\\":\\"user\\",\\"content\\":\\"Hello\\"}]",
-  "output": "{\\"role\\":\\"assistant\\",\\"content\\":\\"Hi! How can I help?\\"}",
-  "log_type": "chat",
-  "model": "gpt-4o-mini",
-  "usage": {"prompt_tokens": 10, "completion_tokens": 8, "total_tokens": 18},
-  "latency": 0.5,
-  "customer_identifier": "user_123"
-}
-
-Note: Maximum log size is 20MB including all fields.`,
-    {
-      input: z.union([z.string(), z.any()]).optional().describe("Universal input field - structure depends on log_type (string, object, or array)"),
-      output: z.union([z.string(), z.any()]).optional().describe("Universal output field - structure depends on log_type (string, object, or array)"),
-      log_type: z.string().optional().describe("Span type: chat, completion, embedding, transcription, speech, workflow, agent, task, tool, function, generation, handoff, guardrail, custom"),
-      model: z.string().optional().describe("Model used for inference (e.g., 'gpt-4o-mini')"),
-      usage: z.object({
-        prompt_tokens: z.number().optional(),
-        completion_tokens: z.number().optional(),
-        total_tokens: z.number().optional(),
-        prompt_tokens_details: z.any().optional(),
-        cache_creation_prompt_tokens: z.number().optional()
-      }).optional().describe("Token usage information"),
-      cost: z.number().optional().describe("Cost in USD (auto-calculated if not provided)"),
-      latency: z.number().optional().describe("Total request latency in seconds"),
-      time_to_first_token: z.number().optional().describe("Time to first token in seconds"),
-      tokens_per_second: z.number().optional().describe("Generation speed in tokens/second"),
-      metadata: z.record(z.string(), z.any()).optional().describe("Custom key-value pairs for analytics"),
-      customer_identifier: z.string().optional().describe("User/customer identifier"),
-      customer_params: z.object({
-        customer_identifier: z.string().optional(),
-        name: z.string().optional(),
-        email: z.string().optional()
-      }).optional().describe("Extended customer information"),
-      thread_identifier: z.string().optional().describe("Conversation thread ID"),
-      custom_identifier: z.string().optional().describe("Indexed custom identifier for fast querying"),
-      group_identifier: z.string().optional().describe("Group identifier for related logs"),
-      trace_unique_id: z.string().optional().describe("Unique trace ID for linking spans"),
-      span_workflow_name: z.string().optional().describe("Workflow name"),
-      span_name: z.string().optional().describe("Span/task name"),
-      span_parent_id: z.string().optional().describe("Parent span ID for hierarchy"),
-      tools: z.array(z.any()).optional().describe("Tools array for function calling"),
-      tool_choice: z.union([z.string(), z.any()]).optional().describe("Tool choice control"),
-      temperature: z.number().optional().describe("Randomness control (0-2)"),
-      top_p: z.number().optional().describe("Nucleus sampling parameter"),
-      frequency_penalty: z.number().optional().describe("Frequency penalty"),
-      presence_penalty: z.number().optional().describe("Presence penalty"),
-      max_tokens: z.number().optional().describe("Maximum tokens to generate"),
-      stop: z.array(z.string()).optional().describe("Stop sequences"),
-      stream: z.boolean().optional().describe("Whether response was streamed"),
-      response_format: z.any().optional().describe("Response format configuration"),
-      prompt_id: z.string().optional().describe("Prompt template ID"),
-      prompt_name: z.string().optional().describe("Prompt template name"),
-      is_custom_prompt: z.boolean().optional().describe("Whether using custom prompt"),
-      status_code: z.number().optional().describe("HTTP status code (default: 200)"),
-      error_message: z.string().optional().describe("Error message if request failed"),
-      warnings: z.union([z.string(), z.any()]).optional().describe("Warnings that occurred"),
-      status: z.string().optional().describe("Request status (success, error)"),
-      timestamp: z.string().optional().describe("ISO 8601 timestamp when request completed"),
-      start_time: z.string().optional().describe("ISO 8601 timestamp when request started"),
-      full_request: z.any().optional().describe("Full request object for additional params"),
-      full_response: z.any().optional().describe("Full response object from provider"),
-      prompt_unit_price: z.number().optional().describe("Custom price per 1M prompt tokens"),
-      completion_unit_price: z.number().optional().describe("Custom price per 1M completion tokens"),
-      keywordsai_api_controls: z.object({
-        block: z.boolean().optional()
-      }).optional().describe("API behavior controls"),
-      positive_feedback: z.boolean().optional().describe("User feedback (true = positive)")
-    },
-    async (params) => {
-      const c = requireClient(client);
-      const data = await c.client.spans.createSpan({ Authorization: c.auth, ...params } as any);
       return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
     }
   );

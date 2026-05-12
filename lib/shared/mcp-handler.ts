@@ -10,6 +10,7 @@ import { registerPromptTools } from '../develop/prompts.js';
 import { registerExperimentTools } from '../develop/experiments.js';
 import { registerEvaluatorTools } from '../evaluate/evaluators.js';
 import { registerDatasetTools } from '../evaluate/datasets.js';
+import { registerWorkflowTools } from '../develop/workflows.js';
 
 function createServer(client: AuthenticatedClient | null, enabledTools?: Set<string>): McpServer {
   const server = new McpServer({
@@ -33,6 +34,7 @@ function createServer(client: AuthenticatedClient | null, enabledTools?: Set<str
   registerExperimentTools(server, client);
   registerEvaluatorTools(server, client);
   registerDatasetTools(server, client);
+  registerWorkflowTools(server, client);
 
   return server;
 }
