@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { AuthenticatedClient } from "../shared/client.js";
-import { requireClient } from "../shared/client.js";
+import { requireClient, rawFetch } from "../shared/client.js";
 
 export function registerWorkflowTools(
   server: McpServer,
@@ -253,18 +253,51 @@ EXAMPLE - Cost spike monitor:
   );
 
   server.tool(
-    "deploy_workflow",
-    "Deploy a workflow version as the live version. If version is omitted, deploys the latest committed version.",
+    "commit_workflow",
+    `Commit the current draft of a workflow/pipeline, locking it as a read-only version that can be deployed.
+
+REQUIRED before deploy_workflow. The deploy endpoint rejects calls if no committed version exists.
+Calls POST /api/workflows/{id}/commits/ (the correct platform endpoint — different from the SDK's createWorkflowVersion which doesn't actually commit).
+
+Flow:
+1. create_workflow (or create_evaluation_pipeline) — creates a draft
+2. commit_workflow — locks current draft as read-only
+3. deploy_workflow — makes the committed version live
+
+Applies to evaluator pipelines too (pipelines = workflows of type=evaluators).`,
     {
-      workflow_id: z.string().describe("Workflow ID."),
-      version: z.number().optional().describe("Version number to deploy. Omit for latest."),
+      workflow_id: z.string().describe("Workflow/pipeline family workflow_id."),
+      description: z.string().optional().describe("Commit message / version description."),
+    },
+    async ({ workflow_id, description }) => {
+      const c = requireClient(client);
+      const data = await rawFetch(c, `/api/workflows/${workflow_id}/commits/`, {
+        method: "POST",
+        body: description ? { description } : {},
+      });
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+      };
+    }
+  );
+
+  server.tool(
+    "deploy_workflow",
+    `Deploy a committed workflow/pipeline version as the active (live) version.
+
+Calls POST /api/workflows/{id}/deployments/ (the correct platform endpoint — different from the SDK's deployWorkflow).
+If version is omitted, deploys the latest committed version.
+
+REQUIREMENT: must call commit_workflow first. If no committed version exists, deploy returns 404 "Committed version not found".`,
+    {
+      workflow_id: z.string().describe("Workflow/pipeline family workflow_id."),
+      version: z.number().optional().describe("Specific version number to deploy. Omit for latest committed."),
     },
     async ({ workflow_id, version }) => {
       const c = requireClient(client);
-      const data = await c.client.workflows.deployWorkflow({
-        Authorization: c.auth,
-        workflow_id,
-        ...(version !== undefined ? { version } : {}),
+      const data = await rawFetch(c, `/api/workflows/${workflow_id}/deployments/`, {
+        method: "POST",
+        body: version !== undefined ? { version } : {},
       });
       return {
         content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],

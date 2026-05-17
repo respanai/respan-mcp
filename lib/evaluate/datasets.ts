@@ -37,14 +37,41 @@ export function registerDatasetTools(server: McpServer, client: AuthenticatedCli
 
   server.tool(
     'create_dataset',
-    'Create a new dataset.',
+    `Create a new dataset.
+
+MODES:
+- Empty dataset: pass is_empty=true. No time range needed.
+- Sampled from logs: pass start_time, end_time, and optionally sampling (1-100) and initial_log_filters.
+- Duplicate existing: pass source_dataset_id to copy logs from another dataset.`,
     {
-      name: z.string().describe('Name of the dataset.'),
+      name: z.string().optional().describe('Dataset name. Required unless source_dataset_id is provided.'),
       description: z.string().optional().describe('A description of the dataset.'),
+      is_empty: z.boolean().optional().describe('Create an empty dataset without importing logs (skips time range requirement).'),
+      sampling: z.number().optional().describe('Percent of matching logs to add (1-100).'),
+      start_time: z.string().optional().describe('ISO 8601 start of log time range. Required when sampling logs.'),
+      end_time: z.string().optional().describe('ISO 8601 end of log time range. Required when sampling logs.'),
+      initial_log_filters: z
+        .record(z.object({
+          operator: z.string().optional(),
+          value: z.any().optional(),
+        }))
+        .optional()
+        .describe('Filters keyed by field name. Example: { "status_code": { "operator": "eq", "value": 200 } }'),
+      source_dataset_id: z.string().optional().describe('Existing dataset ID to duplicate. Copies logs asynchronously.'),
     },
-    async (params) => {
+    async ({ name, description, is_empty, sampling, start_time, end_time, initial_log_filters, source_dataset_id }) => {
       const c = requireClient(client);
-      const data = await c.client.datasets.createDataset({ Authorization: c.auth, ...params });
+      const data = await c.client.datasets.createDataset({
+        Authorization: c.auth,
+        ...(name !== undefined ? { name } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(is_empty !== undefined ? { is_empty } : {}),
+        ...(sampling !== undefined ? { sampling } : {}),
+        ...(start_time !== undefined ? { start_time } : {}),
+        ...(end_time !== undefined ? { end_time } : {}),
+        ...(initial_log_filters !== undefined ? { initial_log_filters } : {}),
+        ...(source_dataset_id !== undefined ? { source_dataset_id } : {}),
+      });
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
       };
@@ -108,32 +135,6 @@ export function registerDatasetTools(server: McpServer, client: AuthenticatedCli
   );
 
   server.tool(
-    'create_dataset_log',
-    'Create a new log (data point) in a dataset with input, output, and optional metadata/metrics.',
-    {
-      dataset_id: z.string().describe('The unique identifier of the dataset.'),
-      input: z.any().optional().describe('The input data (string, object, or array).'),
-      output: z.any().optional().describe('The output/expected output data (string, object, or array).'),
-      metadata: z.record(z.any()).optional().describe('Optional metadata key-value pairs (e.g. model, log_type).'),
-      metrics: z.record(z.any()).optional().describe('Optional metrics (e.g. prompt_tokens, completion_tokens, cost, latency).'),
-    },
-    async ({ dataset_id, input, output, metadata, metrics }) => {
-      const c = requireClient(client);
-      const data = await c.client.datasets.createDatasetLog({
-        Authorization: c.auth,
-        dataset_id,
-        ...(input !== undefined ? { input } : {}),
-        ...(output !== undefined ? { output } : {}),
-        ...(metadata ? { metadata } : {}),
-        ...(metrics ? { metrics } : {}),
-      });
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
-      };
-    },
-  );
-
-  server.tool(
     'retrieve_dataset_log',
     'Retrieve a specific log from a dataset by its unique ID.',
     {
@@ -143,34 +144,6 @@ export function registerDatasetTools(server: McpServer, client: AuthenticatedCli
     async ({ dataset_id, unique_id }) => {
       const c = requireClient(client);
       const data = await c.client.datasets.retrieveDatasetLog({ Authorization: c.auth, dataset_id, unique_id });
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
-      };
-    },
-  );
-
-  server.tool(
-    'update_dataset_log',
-    'Update a log in a dataset. Supports updating input, output, expected_output, and metadata.',
-    {
-      dataset_id: z.string().describe('The unique identifier of the dataset.'),
-      unique_id: z.string().describe('The unique identifier of the log to update.'),
-      input: z.any().optional().describe('Updated input data.'),
-      output: z.any().optional().describe('Updated output data.'),
-      expected_output: z.any().optional().describe('Updated expected output for evaluation.'),
-      metadata: z.record(z.any()).optional().describe('Updated metadata key-value pairs.'),
-    },
-    async ({ dataset_id, unique_id, input, output, expected_output, metadata }) => {
-      const c = requireClient(client);
-      const data = await c.client.datasets.updateDatasetLog({
-        Authorization: c.auth,
-        dataset_id,
-        unique_id,
-        ...(input !== undefined ? { input } : {}),
-        ...(output !== undefined ? { output } : {}),
-        ...(expected_output !== undefined ? { expected_output } : {}),
-        ...(metadata ? { metadata } : {}),
-      });
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
       };
@@ -210,28 +183,6 @@ export function registerDatasetTools(server: McpServer, client: AuthenticatedCli
   );
 
   server.tool(
-    'run_eval_on_dataset',
-    'Run evaluators on all logs in a dataset. Returns evaluation results.',
-    {
-      dataset_id: z.string().describe('The unique identifier of the dataset.'),
-      evaluator_ids: z.array(z.string()).describe('Array of evaluator IDs to run against the dataset.'),
-      experiment_id: z.string().optional().describe('Optional experiment to associate with the evaluation runs.'),
-    },
-    async ({ dataset_id, evaluator_ids, experiment_id }) => {
-      const c = requireClient(client);
-      const data = await c.client.datasets.runEvalOnDataset({
-        Authorization: c.auth,
-        dataset_id,
-        evaluator_ids,
-        ...(experiment_id ? { experiment_id } : {}),
-      });
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
-      };
-    },
-  );
-
-  server.tool(
     'delete_dataset',
     'Permanently delete a dataset and all its logs. This action cannot be undone.',
     {
@@ -247,24 +198,8 @@ export function registerDatasetTools(server: McpServer, client: AuthenticatedCli
   );
 
   server.tool(
-    'delete_dataset_log',
-    'Permanently delete a single log from a dataset.',
-    {
-      dataset_id: z.string().describe('The unique identifier of the dataset.'),
-      unique_id: z.string().describe('The unique identifier of the log to delete.'),
-    },
-    async ({ dataset_id, unique_id }) => {
-      const c = requireClient(client);
-      await c.client.datasets.deleteDatasetLog({ Authorization: c.auth, dataset_id, unique_id });
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify({ deleted: true, dataset_id, unique_id }, null, 2) }],
-      };
-    },
-  );
-
-  server.tool(
     'replace_dataset_log',
-    'Replace (full overwrite) a log in a dataset. Unlike update_dataset_log which patches, this replaces the entire log record.',
+    'Replace (full overwrite) a log in a dataset. Updates input, output, expected_output, and/or metadata fields.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset.'),
       unique_id: z.string().describe('The unique identifier of the log to replace.'),
@@ -296,7 +231,7 @@ export function registerDatasetTools(server: McpServer, client: AuthenticatedCli
 
   server.tool(
     'remove_dataset_logs',
-    'Bulk-remove logs from a dataset by filter, or remove every log. Pass is_deleting_all_logs=true to wipe the dataset contents.',
+    'Remove one or more logs from a dataset by filter. To delete a single log, pass filter { unique_id: { operator: "eq", value: "<log_id>" } }. Pass is_deleting_all_logs=true to wipe the dataset contents.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset.'),
       is_deleting_all_logs: z.boolean().optional().describe('Set to true to remove every log in the dataset.'),
@@ -350,7 +285,7 @@ export function registerDatasetTools(server: McpServer, client: AuthenticatedCli
 
   server.tool(
     'bulk_create_dataset_logs',
-    'Create multiple logs in a dataset in a single request. Each log can include input, output, expected_output, metadata, and metrics.',
+    'Create one or more logs in a dataset. Pass a single-item array to insert one log. Each log can include input, output, expected_output, metadata, and metrics.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset. Use "_saved_logs" for the virtual saved-logs collection.'),
       logs: z

@@ -11,15 +11,45 @@ export interface AuthConfig {
 export interface AuthenticatedClient {
   client: RespanClient;
   auth: string; // "Bearer <token>"
+  baseUrl: string; // For endpoints not yet in the SDK
 }
 
+const DEFAULT_BASE_URL = 'https://api.respan.ai';
+
 export function createClient(auth: AuthConfig, baseUrl?: string): AuthenticatedClient {
+  const resolvedBaseUrl = baseUrl || auth.baseUrl || DEFAULT_BASE_URL;
   return {
-    client: new RespanClient({
-      ...(baseUrl ? { environment: baseUrl } : {}),
-    }),
+    client: new RespanClient({ environment: resolvedBaseUrl }),
     auth: `Bearer ${auth.token}`,
+    baseUrl: resolvedBaseUrl,
   };
+}
+
+/**
+ * Raw fetch helper for endpoints not yet in the SDK.
+ * Throws on non-2xx with the response body included.
+ */
+export async function rawFetch(
+  client: AuthenticatedClient,
+  path: string,
+  init: { method?: string; body?: unknown } = {},
+): Promise<unknown> {
+  const url = new URL(path, client.baseUrl).toString();
+  const res = await fetch(url, {
+    method: init.method || 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: client.auth,
+    },
+    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+  });
+  const text = await res.text();
+  let parsed: unknown;
+  try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
+  if (!res.ok) {
+    throw new Error(`${res.status} ${res.statusText}: ${typeof parsed === 'string' ? parsed : JSON.stringify(parsed)}`);
+  }
+  return parsed;
 }
 
 /**

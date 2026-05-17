@@ -389,4 +389,29 @@ Use list_prompts to find prompt_id, then list_prompt_versions to find the versio
       };
     }
   );
+
+  server.tool(
+    "deploy_prompt_version",
+    `Deploy a specific prompt version, making it the active version that experiments (and other workflows) will use.
+
+Background: when you create a prompt version, it starts as a draft (not deployed). The platform requires at least one DEPLOYED version before a prompt can be referenced by version number in experiments or other workflows. If you call create_experiment with a prompt workflow and see "Prompt version X not found", you forgot to deploy.
+
+Tip: in the UI it's common to have multiple versions (draft + deployed). To switch the active version, just deploy the new one — the previous deployed version stays in history.`,
+    {
+      prompt_id: z.string().describe("Unique prompt identifier (from list_prompts)"),
+      version: z.number().describe("Version number to deploy as the active version"),
+    },
+    async ({ prompt_id, version }) => {
+      const c = requireClient(client);
+      const data = await c.client.prompts.updatePromptVersion({
+        Authorization: c.auth,
+        prompt_id,
+        version,
+        deploy: true,
+      });
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+      };
+    }
+  );
 }

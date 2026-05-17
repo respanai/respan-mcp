@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { AuthenticatedClient } from '../shared/client.js';
-import { requireClient } from '../shared/client.js';
+import { requireClient, rawFetch } from '../shared/client.js';
 
 export function registerEvaluatorTools(server: McpServer, client: AuthenticatedClient | null) {
   server.tool(
@@ -143,6 +143,28 @@ EXAMPLE - Numerical LLM grader with rubric:
     async (params) => {
       const c = requireClient(client);
       const { name, type, score_value_type, evaluator_slug, description, score_config, passing_conditions, llm_config, code_config, categorical_choices } = params;
+
+      if (type === 'llm') {
+        if (!llm_config) {
+          throw new Error('LLM evaluators require llm_config. Include at minimum: { "model": "gpt-4o-mini", "evaluator_definition": "<prompt with {{output}}>" }');
+        }
+        const def = llm_config.evaluator_definition;
+        if (!def) {
+          throw new Error('LLM evaluators require evaluator_definition in llm_config — the prompt template the LLM uses to score. Must contain {{output}}.');
+        }
+        if (!def.includes('{{output}}')) {
+          throw new Error('evaluator_definition MUST contain the {{output}} template variable. Without it, the evaluator cannot see the output it is supposed to score.');
+        }
+        if (!llm_config.model) {
+          throw new Error('LLM evaluators require llm_config.model (e.g. "gpt-4o-mini").');
+        }
+      }
+      if (type === 'code') {
+        if (!code_config || !code_config.eval_code_snippet) {
+          throw new Error('Code evaluators require code_config with eval_code_snippet. Include: { "eval_code_snippet": "def main(eval_inputs): ..." }');
+        }
+      }
+
       const data = await c.client.evaluators.createEvaluator({
         Authorization: c.auth,
         name,
@@ -156,6 +178,91 @@ EXAMPLE - Numerical LLM grader with rubric:
         ...(code_config ? { code_config } : {}),
         ...(categorical_choices ? { categorical_choices } : {}),
       });
+      const result = data as Record<string, unknown>;
+      const id = result?.id ?? result?.evaluator_id;
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            ...result,
+            _next_steps: `Created as draft. To use in production: 1) test_evaluator with sample inputs to verify, 2) commit_evaluator to lock the version, 3) create_evaluation_pipeline to make it show on the Evaluators page.`,
+            _evaluator_id: id,
+          }, null, 2),
+        }],
+      };
+    },
+  );
+
+  server.tool(
+    'test_evaluator',
+    `Test-run a grader with sample inputs to verify it scores correctly BEFORE committing.
+
+Required keys in inputs: at least "input" and "output". Optional: "expected_output", "metrics", "metadata".
+
+Example:
+{
+  "evaluator_id": "abc123",
+  "inputs": { "input": "What is 2+2?", "output": "4", "expected_output": "4" }
+}
+
+Returns the actual score (boolean_value / numerical_value / etc.) and reasoning. Use this before commit_evaluator.`,
+    {
+      evaluator_id: z.string().describe('Evaluator ID (optionally with version: "id:version").'),
+      inputs: z.record(z.any()).describe('Sample data. At minimum {input, output}. Add expected_output / metrics / metadata as the evaluator needs.'),
+      generation_method: z.enum(['auto', 'llm', 'code']).optional().describe('Force evaluation method. Default: auto.'),
+    },
+    async ({ evaluator_id, inputs, generation_method }) => {
+      const c = requireClient(client);
+      const data = await rawFetch(c, `/api/evaluators/${evaluator_id}/run/`, {
+        method: 'POST',
+        body: {
+          inputs,
+          ...(generation_method ? { generation_method } : {}),
+        },
+      });
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
+      };
+    },
+  );
+
+  server.tool(
+    'commit_evaluator',
+    `Commit the current draft of a grader, creating a new read-only version.
+
+IMPORTANT: Only commit AFTER a successful test_evaluator run. After committing, use create_evaluation_pipeline to wrap the grader in a V2 pipeline that renders in the UI.`,
+    {
+      evaluator_id: z.string().describe('Evaluator ID to commit.'),
+      version_description: z.string().optional().describe('Commit message describing what changed in this version.'),
+    },
+    async ({ evaluator_id, version_description }) => {
+      const c = requireClient(client);
+      const data = await rawFetch(c, `/api/evaluators/${evaluator_id}/versions/`, {
+        method: 'POST',
+        body: version_description ? { version_description } : {},
+      });
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
+      };
+    },
+  );
+
+  server.tool(
+    'list_evaluator_versions',
+    'List all versions (commits) of an evaluator.',
+    {
+      evaluator_id: z.string().describe('Evaluator ID.'),
+      page: z.number().optional().describe('Page number.'),
+      page_size: z.number().optional().describe('Results per page.'),
+    },
+    async ({ evaluator_id, page, page_size }) => {
+      const c = requireClient(client);
+      const q = new URLSearchParams();
+      if (page !== undefined) q.set('page', String(page));
+      if (page_size !== undefined) q.set('page_size', String(page_size));
+      const qs = q.toString();
+      const path = `/api/evaluators/${evaluator_id}/versions/${qs ? `?${qs}` : ''}`;
+      const data = await rawFetch(c, path, { method: 'GET' });
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
       };
@@ -209,19 +316,22 @@ EXAMPLE - Numerical LLM grader with rubric:
 
   server.tool(
     'run_evaluator',
-    'Run an evaluator against a dataset or specific logs.',
+    `Run an evaluator on a single log/span to verify it works.
+
+This is for quick verification of one record (e.g. confirm an evaluator scores as expected before running broader experiments).
+For scoring many records, create an experiment instead.
+
+Returns the actual score (boolean_value / numerical_value / etc.) and cost.`,
     {
       evaluator_id: z.string().describe('The unique identifier of the evaluator to run.'),
-      dataset_id: z.string().optional().describe('Dataset ID to evaluate.'),
-      log_ids: z.array(z.string()).optional().describe('Specific log IDs to evaluate.'),
+      log_id: z.string().describe('The span/log unique ID to score (from list_experiment_spans, list_traces, etc.).'),
     },
-    async ({ evaluator_id, dataset_id, log_ids }) => {
+    async ({ evaluator_id, log_id }) => {
       const c = requireClient(client);
       const data = await c.client.evaluators.runEvaluator({
         Authorization: c.auth,
         evaluator_id,
-        ...(dataset_id !== undefined ? { dataset_id } : {}),
-        ...(log_ids !== undefined ? { log_ids } : {}),
+        log_ids: [log_id],
       });
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],

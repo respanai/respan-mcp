@@ -10,6 +10,7 @@ import { registerPromptTools } from "./develop/prompts.js";
 import { registerExperimentTools } from "./develop/experiments.js";
 import { registerEvaluatorTools } from "./evaluate/evaluators.js";
 import { registerDatasetTools } from "./evaluate/datasets.js";
+import { registerEvaluationPipelineTools } from "./evaluate/pipelines.js";
 import { registerWorkflowTools } from "./develop/workflows.js";
 
 async function main() {
@@ -33,6 +34,7 @@ async function main() {
   registerExperimentTools(server, client);
   registerEvaluatorTools(server, client);
   registerDatasetTools(server, client);
+  registerEvaluationPipelineTools(server, client);
   registerWorkflowTools(server, client);
 
   const transport = new StdioServerTransport();

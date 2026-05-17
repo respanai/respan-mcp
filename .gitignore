@@ -31,3 +31,9 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Local test drivers (may contain creds)
+test-*.mjs
+
+# Local Claude scratch
+.claude/
