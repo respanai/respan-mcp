@@ -91,6 +91,7 @@ export function createMcpHandler(defaultBaseUrl: string, resourceMetadataPath: s
       }
 
       const baseUrl = (req.headers['respan-api-base-url'] as string)
+        || (req.headers['keywords-api-base-url'] as string)
         || process.env.RESPAN_API_BASE_URL
         || defaultBaseUrl;
 

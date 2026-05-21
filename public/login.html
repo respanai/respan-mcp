@@ -670,7 +670,7 @@
         function authHeaders() {
             const h = { 'Content-Type': 'application/json' };
             if (isEnterprise) {
-                h['keywords-api-base-url'] = 'https://endpoint.respan.ai/api';
+                h['respan-api-base-url'] = 'https://endpoint.respan.ai/api';
             }
             return h;
         }

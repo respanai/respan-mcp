@@ -15,6 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const baseUrl = (req.headers['respan-api-base-url'] as string)
+    || (req.headers['keywords-api-base-url'] as string)
     || process.env.RESPAN_API_BASE_URL
     || DEFAULT_BASE_URL;
 
