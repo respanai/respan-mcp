@@ -1,4 +1,4 @@
-// Live check that every filter field / sort option advertised by list_traces is
+// Live check that every filter field / sort option advertised by trace_list is
 // honoured by the backend traces list endpoint.
 //
 //   RESPAN_API_KEY=... npx tsx scripts/verify-filter-fields.ts
@@ -14,7 +14,7 @@ import {
   TRACE_FILTER_FIELDS,
   TRACE_LEVEL_FILTER_FIELDS,
   TRACE_SORT_OPTIONS,
-} from '../lib/observe/traces.js';
+} from '../lib/production/traces.js';
 
 loadEnv({ path: '.env.local' });
 

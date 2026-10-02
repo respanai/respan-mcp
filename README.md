@@ -118,27 +118,23 @@ to the same organization, because the backend stores the active organization on
 the user record rather than on the token. Requires an OAuth login; an API key is
 already bound to one organization and cannot switch.
 
-### Logs
+### Production
+
+What is happening in your app. Every tool here is read-only and defaults to the last 24 hours.
 
 | Tool | Description |
 |------|-------------|
-| `list_logs` | List and filter LLM request logs with powerful query capabilities |
-| `get_log_detail` | Retrieve complete details of a single log by unique ID |
-| `create_log` | Create a new log entry for any type of LLM request |
+| `log_list` | Find individual requests and spans (compact rows, no message text) |
+| `log_get` | Read one request in full: messages, output, cost, tokens, scores |
+| `trace_list` | Find agent or workflow runs, with per-run totals |
+| `trace_get` | Read one run as a tree of spans |
+| `thread_list` | Find conversations (requests sharing a `thread_identifier`) |
+| `thread_get` | Read one conversation's totals |
+| `dashboard_llm_metrics_summary` | Requests, cost, tokens, latency and error rate for a time range |
+| `dashboard_top_models` | Rank models by requests, cost, tokens, errors or latency |
+| `end_user_rank_by_usage` | Rank your app's end users the same way |
 
-### Traces
-
-| Tool | Description |
-|------|-------------|
-| `list_traces` | List and filter traces with sorting and pagination |
-| `get_trace_tree` | Retrieve complete hierarchical span tree of a trace |
-
-### Customers
-
-| Tool | Description |
-|------|-------------|
-| `list_customers` | List customers with pagination and sorting |
-| `get_customer_detail` | Get customer details including budget usage |
+Results leave out Respan-internal fields (org and key IDs, pricing internals, storage keys, raw request copies) and long text is shortened to keep each result small.
 
 ### Prompts
 
@@ -175,20 +171,18 @@ The backend route is shared, but the MCP creation functions are intentionally se
 
 ## Filter Syntax
 
-Tools that support filtering accept a `filters` object:
+`log_list` and `trace_list` take common filters as plain parameters (`model`, `status`, `customer_identifier`, `errors_only`, ...). For anything else they accept an advanced `filters` array:
 
 ```json
-{
-  "cost": {"operator": "gt", "value": [0.01]},
-  "model": {"operator": "", "value": ["gpt-4"]},
-  "customer_identifier": {"operator": "contains", "value": ["user"]},
-  "metadata__session_id": {"operator": "", "value": ["abc123"]}
-}
+[
+  {"field": "latency", "operator": "gt", "value": [5]},
+  {"field": "metadata__session_id", "operator": "", "value": ["abc123"]}
+]
 ```
 
 **Operators:** `""` (equal), `not`, `lt`, `lte`, `gt`, `gte`, `contains`, `icontains`, `startswith`, `endswith`, `in`, `isnull`
 
-Each list tool documents the closed set of fields its backend endpoint honours; fields outside that set are rejected client-side with an error listing the supported fields (see `lib/shared/filter-fields.ts`), because the backend silently ignores unknown fields rather than returning an error. Dynamic `metadata__<key>` / `scores__<evaluator_id>` fields are supported by `list_logs` only; `list_traces` has no Map columns and cannot filter on custom metadata.
+The request-log endpoints reject unknown fields with a 400 that names the problem. The traces endpoint silently ignores them, so `trace_list` checks its fields against the closed set the backend honours (see `lib/shared/filter-fields.ts`) and rejects the rest before sending. Custom `metadata__<key>` fields work on `log_list` only; traces have no metadata columns.
 
 ---
 
@@ -201,11 +195,13 @@ respan-mcp/
 ├── lib/
 │   ├── index.ts              # Stdio entry point (local mode)
 │   ├── shared/
-│   │   └── client.ts         # API client, auth config, path validation
-│   ├── observe/
-│   │   ├── logs.ts           # list_logs, get_log_detail, create_log
-│   │   ├── traces.ts         # list_traces, get_trace_tree
-│   │   └── users.ts          # list_customers, get_customer_detail
+│   │   ├── client.ts         # API client, auth config, path validation
+│   │   └── tool-result.ts    # read-only annotations, size budgets, internal-field stripping
+│   ├── production/
+│   │   ├── logs.ts           # log_list, log_get
+│   │   ├── traces.ts         # trace_list, trace_get
+│   │   ├── threads.ts        # thread_list, thread_get
+│   │   └── metrics.ts        # dashboard_llm_metrics_summary, dashboard_top_models, end_user_rank_by_usage
 │   ├── account/
 │   │   └── organizations.ts  # list_organizations, switch_organization
 │   └── develop/
@@ -219,7 +215,7 @@ respan-mcp/
 
 - **Two entry points:** `api/mcp.ts` (HTTP via Vercel) and `lib/index.ts` (stdio for local use)
 - **Shared core:** Both entry points create an `AuthConfig` and pass it to the same tool registration functions via closures - no global mutable state
-- **Tool modules:** Organized by domain (`observe/` for runtime data, `develop/` for prompt management)
+- **Tool modules:** Organized by domain (`production/` for runtime data, `develop/` for prompt management)
 - **API client:** `lib/shared/client.ts` handles all upstream API calls with 30s timeout, path validation, and auth
 
 ---

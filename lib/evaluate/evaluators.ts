@@ -324,7 +324,7 @@ For scoring many records, create an experiment instead.
 Returns the actual score (boolean_value / numerical_value / etc.) and cost.`,
     {
       evaluator_id: z.string().describe('The unique identifier of the evaluator to run.'),
-      log_id: z.string().describe('The span/log unique ID to score (from list_experiment_spans, list_traces, etc.).'),
+      log_id: z.string().describe('The span/log unique ID to score (from list_experiment_spans, log_list, etc.).'),
     },
     async ({ evaluator_id, log_id }) => {
       const c = requireClient(client);
