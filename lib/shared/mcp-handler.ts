@@ -3,9 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { RespanClient } from '@respan/respan-api';
 import type { AuthenticatedClient } from './client.js';
-import { registerLogTools } from '../observe/logs.js';
-import { registerTraceTools } from '../observe/traces.js';
-import { registerUserTools } from '../observe/users.js';
+import { registerProductionTools } from '../production/index.js';
 import { registerPromptTools } from '../develop/prompts.js';
 import { registerExperimentTools } from '../develop/experiments.js';
 import { registerEvaluatorTools } from '../evaluate/evaluators.js';
@@ -38,11 +36,14 @@ function createServer(
       if (!enabledTools.has(name)) return;
       return originalTool.apply(server, arguments as any);
     };
+    const originalRegisterTool = (server as any).registerTool.bind(server);
+    (server as any).registerTool = function (name: string) {
+      if (!enabledTools.has(name)) return;
+      return originalRegisterTool.apply(server, arguments as any);
+    };
   }
 
-  registerLogTools(server, client);
-  registerTraceTools(server, client);
-  registerUserTools(server, client);
+  registerProductionTools(server, client);
   registerPromptTools(server, client);
   registerExperimentTools(server, client);
   registerEvaluatorTools(server, client);
@@ -203,6 +204,7 @@ export function createMcpHandler(
         }),
         auth: `Bearer ${backendCredential}`,
         baseUrl,
+        ...(oauthAccess ? { fetch: trackedFetch } : {}),
       };
       const enabledToolsHeader = req.headers['respan-enabled-tools'] as string | undefined;
       const enabledTools = enabledToolsHeader

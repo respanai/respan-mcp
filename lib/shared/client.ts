@@ -12,6 +12,9 @@ export interface AuthenticatedClient {
   client: RespanClient;
   auth: string; // "Bearer <token>"
   baseUrl: string; // For endpoints not yet in the SDK
+  // Used by rawFetch when set, so the hosted handler can see a backend 401 on
+  // raw calls too and send the OAuth client back through login.
+  fetch?: typeof fetch;
 }
 
 const DEFAULT_BASE_URL = 'https://api.respan.ai';
@@ -32,10 +35,18 @@ export function createClient(auth: AuthConfig, baseUrl?: string): AuthenticatedC
 export async function rawFetch(
   client: AuthenticatedClient,
   path: string,
-  init: { method?: string; body?: unknown } = {},
+  init: {
+    method?: string;
+    body?: unknown;
+    query?: Record<string, string | number | boolean | undefined>;
+  } = {},
 ): Promise<unknown> {
-  const url = new URL(path, client.baseUrl).toString();
-  const res = await fetch(url, {
+  const parsedUrl = new URL(path, client.baseUrl);
+  for (const [key, value] of Object.entries(init.query ?? {})) {
+    if (value !== undefined) parsedUrl.searchParams.set(key, String(value));
+  }
+  const url = parsedUrl.toString();
+  const res = await (client.fetch ?? fetch)(url, {
     method: init.method || 'POST',
     headers: {
       'Content-Type': 'application/json',

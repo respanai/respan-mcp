@@ -3,9 +3,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { resolveAuthFromEnv, createClient } from "./shared/client.js";
-import { registerLogTools } from "./observe/logs.js";
-import { registerTraceTools } from "./observe/traces.js";
-import { registerUserTools } from "./observe/users.js";
+import { registerProductionTools } from "./production/index.js";
 import { registerPromptTools } from "./develop/prompts.js";
 import { registerExperimentTools } from "./develop/experiments.js";
 import { registerEvaluatorTools } from "./evaluate/evaluators.js";
@@ -28,9 +26,7 @@ async function main() {
     version: "1.0.0",
   });
 
-  registerLogTools(server, client);
-  registerTraceTools(server, client);
-  registerUserTools(server, client);
+  registerProductionTools(server, client);
   registerPromptTools(server, client);
   registerExperimentTools(server, client);
   registerEvaluatorTools(server, client);

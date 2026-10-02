@@ -169,7 +169,7 @@ describe('MCP authentication boundary', () => {
     );
     const response = new MockResponse();
     await handler(request(directLoginAccess, 'tools/call', {
-      name: 'list_customers',
+      name: 'thread_list',
       arguments: { page_size: 1, page: 1 },
     }), response as any);
 
@@ -197,14 +197,14 @@ describe('MCP authentication boundary', () => {
     );
     const response = new MockResponse();
     await handler(request('sk-respan-realistic-api-key', 'tools/call', {
-      name: 'list_customers',
+      name: 'thread_list',
       arguments: { page_size: 1, page: 1 },
     }), response as any);
 
     expect(response.statusCode).toBe(200);
     expect(store.operations).toBe(0);
     expect(String(fetchMock.mock.calls[0][0])).toMatch(
-      /^http:\/\/127\.0\.0\.1:8000\/api\/users\/list\//,
+      /^http:\/\/127\.0\.0\.1:8000\/api\/log_threads\//,
     );
     expect(String(fetchMock.mock.calls[0][0])).not.toContain('/api/api/');
   });
@@ -223,7 +223,7 @@ describe('MCP authentication boundary', () => {
       'platform',
     );
     const maliciousRequest = request('unused', 'tools/call', {
-      name: 'list_customers',
+      name: 'thread_list',
       arguments: { page_size: 1, page: 1 },
     });
     delete maliciousRequest.headers.authorization;
@@ -301,7 +301,7 @@ describe('MCP authentication boundary', () => {
     );
     const response = new MockResponse();
     await handler(request(pair.access_token, 'tools/call', {
-      name: 'list_customers',
+      name: 'thread_list',
       arguments: { page_size: 1, page: 1 },
     }), response as any);
     expect(response.statusCode).toBe(200);
@@ -328,14 +328,14 @@ describe('MCP authentication boundary', () => {
     );
     const enterpriseResponse = new MockResponse();
     await enterpriseHandler(request(pair.access_token, 'tools/call', {
-      name: 'list_customers',
+      name: 'thread_list',
       arguments: { page_size: 1, page: 1 },
     }), enterpriseResponse as any);
 
     expect(enterpriseResponse.statusCode).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0][0])).toMatch(
-      /^https:\/\/endpoint\.respan\.ai\/api\/users\/list\//,
+      /^https:\/\/endpoint\.respan\.ai\/api\/log_threads\//,
     );
     const outboundHeaders = new Headers(fetchMock.mock.calls[0][1]?.headers);
     expect(outboundHeaders.get('authorization')).toMatch(/^Bearer eyJ/);
@@ -367,7 +367,7 @@ describe('MCP authentication boundary', () => {
     );
     const response = new MockResponse();
     await handler(request(pair.access_token, 'tools/call', {
-      name: 'list_customers',
+      name: 'thread_list',
       arguments: { page_size: 1, page: 1 },
     }), response as any);
     expect(fetchMock).toHaveBeenCalledTimes(1);

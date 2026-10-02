@@ -33,7 +33,7 @@ export interface FilterFieldSpec {
   dynamicPrefixes?: readonly string[];
   /**
    * Optional extra guidance appended to the error message, given the
-   * unsupported keys (e.g. "metadata is not filterable here, use list_logs").
+   * unsupported keys (e.g. "metadata is not filterable here, use log_list").
    */
   hint?: (unsupported: readonly string[]) => string | undefined;
 }

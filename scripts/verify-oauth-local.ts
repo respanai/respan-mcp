@@ -386,7 +386,7 @@ async function run(): Promise<void> {
 
     await step('read-only OAuth tool call', async () => {
       const result = await mcpRequest(pair.access_token, 'tools/call', {
-        name: 'list_customers',
+        name: 'thread_list',
         arguments: { page_size: 1, page: 1 },
       }, 3);
       assert(result.response.ok && result.body.result && !result.body.result.isError, 'OAuth tool call failed');
@@ -422,7 +422,7 @@ async function run(): Promise<void> {
 
     await step('post-refresh MCP tool call', async () => {
       const result = await mcpRequest(rotated.access_token, 'tools/call', {
-        name: 'list_customers',
+        name: 'thread_list',
         arguments: { page_size: 1, page: 1 },
       }, 5);
       assert(result.response.ok && result.body.result && !result.body.result.isError, 'Post-refresh tool call failed');
@@ -458,7 +458,7 @@ async function run(): Promise<void> {
       await step('API key path performs zero Redis writes and calls a tool', async () => {
         const before = (await redis.keys()).sort();
         const result = await mcpRequest(apiKey!, 'tools/call', {
-          name: 'list_customers',
+          name: 'thread_list',
           arguments: { page_size: 1, page: 1 },
         }, 8);
         assert(result.response.ok && result.body.result && !result.body.result.isError, 'API key tool call failed');
