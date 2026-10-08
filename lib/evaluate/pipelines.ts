@@ -170,7 +170,7 @@ async function buildPipelineTasks(
   for (const step of steps) {
     if (!step.grader_id) return { tasks: [], error: 'Each step must have a grader_id.' };
     const g = await fetchGrader(c, step.grader_id);
-    if (!g) return { tasks: [], error: `Grader ${step.grader_id} not found. Create and commit it first with create_evaluator + commit_evaluator.` };
+    if (!g) return { tasks: [], error: `Grader ${step.grader_id} not found. Create and commit it first with grader_create + grader_commit.` };
     graders[step.grader_id] = g;
   }
   if (condition?.check_grader_id && !graders[condition.check_grader_id]) {
@@ -274,10 +274,10 @@ export function registerEvaluationPipelineTools(
   client: AuthenticatedClient | null,
 ) {
   server.tool(
-    'create_evaluation_pipeline',
+    'evaluator_create',
     `Create an evaluator pipeline (V2 — Blockly visual editor compatible) that renders in the Evaluators page UI.
 
-Pipelines wrap committed graders into a workflow. Use this AFTER creating + committing a grader with create_evaluator + commit_evaluator.
+Pipelines wrap committed graders into a workflow. Use this AFTER creating + committing a grader with grader_create + grader_commit.
 
 PATTERNS:
 - Single grader:       steps=[{grader_id: "abc"}]
@@ -285,7 +285,7 @@ PATTERNS:
 - Weighted average:    steps=[...], combine="weighted_average", weights=[0.6, 0.4]
 - Condition gate:      steps=[{grader_id: "abc"}], condition={check_grader_id: "xyz", operator: "gt", value: 50, else_value: 0}
 
-IMPORTANT: Use this, NOT create_workflow, when wrapping graders into evaluators.`,
+IMPORTANT: Use this, NOT workflow_create, when wrapping graders into evaluators.`,
     {
       name: z.string().describe('Pipeline name (displayed on the Evaluators page).'),
       description: z.string().optional().describe('Pipeline description.'),
@@ -333,8 +333,8 @@ IMPORTANT: Use this, NOT create_workflow, when wrapping graders into evaluators.
   );
 
   server.tool(
-    'list_evaluation_pipelines',
-    'List evaluator pipelines (V2). These are the items shown on the Evaluation Pipelines page in the UI.',
+    'evaluator_list',
+    'List evaluator pipelines (V2). These are the items shown on the Evaluators page in the UI.',
     {
       name: z.string().optional().describe('Filter by pipeline name (contains).'),
       page: z.number().optional().describe('Page number (default: 1).'),
@@ -361,7 +361,7 @@ IMPORTANT: Use this, NOT create_workflow, when wrapping graders into evaluators.
   );
 
   server.tool(
-    'get_evaluation_pipeline',
+    'evaluator_get',
     'Get an evaluator pipeline by ID. Accepts both the family workflow_id and the version PK.',
     {
       pipeline_id: z.string().describe('Family workflow_id OR version PK id.'),
@@ -376,7 +376,7 @@ IMPORTANT: Use this, NOT create_workflow, when wrapping graders into evaluators.
   );
 
   server.tool(
-    'update_evaluation_pipeline',
+    'evaluator_update',
     `Update an evaluator pipeline. Provide the FULL updated structure (steps, combine, weights). Existing graders are replaced. Tasks are rebuilt automatically.`,
     {
       pipeline_id: z.string().describe('Family workflow_id OR version PK id.'),

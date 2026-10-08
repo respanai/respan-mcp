@@ -122,7 +122,7 @@ describe('organization tools', () => {
 
   it('registers both tools', () => {
     expect([...registerTools().keys()].sort())
-      .toEqual(['list_organizations', 'switch_organization']);
+      .toEqual(['org_list', 'org_switch']);
   });
 
   it('lists organizations with the active one flagged', async () => {
@@ -131,7 +131,7 @@ describe('organization tools', () => {
         ? jsonResponse([ACME, GLOBEX])
         : jsonResponse({ unique_organization_id: 'org-globex' })
     )));
-    const payload = await callTool('list_organizations');
+    const payload = await callTool('org_list');
     expect(payload.organizations.find((o: any) => o.is_current).name).toBe('Globex');
   });
 
@@ -141,7 +141,7 @@ describe('organization tools', () => {
         ? jsonResponse([ACME])
         : jsonResponse({ error: 'boom' }, 500)
     )));
-    const payload = await callTool('list_organizations');
+    const payload = await callTool('org_list');
     expect(payload.organizations).toHaveLength(1);
     expect(payload.organizations[0].is_current).toBe(false);
   });
@@ -157,7 +157,7 @@ describe('organization tools', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const payload = await callTool('switch_organization', { organization: 'Acme' });
+    const payload = await callTool('org_switch', { organization: 'Acme' });
     expect(payload).toMatchObject({ switched: true, active_organization: 'Acme' });
 
     const patch = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH');
@@ -175,7 +175,7 @@ describe('organization tools', () => {
         ? jsonResponse([ACME, GLOBEX])
         : jsonResponse({ unique_organization_id: 'org-globex' });
     }));
-    const payload = await callTool('switch_organization', { organization: 'Acme' });
+    const payload = await callTool('org_switch', { organization: 'Acme' });
     expect(payload.switched).toBeUndefined();
     expect(payload.error).toMatch(/invitation may still be pending/);
   });
@@ -186,16 +186,16 @@ describe('organization tools', () => {
         ? jsonResponse([ACME, GLOBEX])
         : jsonResponse({ unique_organization_id: 'org-acme' })
     )));
-    const payload = await callTool('switch_organization', { organization: 'Nope' });
+    const payload = await callTool('org_switch', { organization: 'Nope' });
     expect(payload.error).toMatch(/No organization matches "Nope"/);
   });
 
   it('explains that a 401 session cannot switch (API key or expired OAuth)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ detail: 'no' }, 401)));
-    const listed = await callTool('list_organizations');
+    const listed = await callTool('org_list');
     expect(listed.error).toMatch(/requires an OAuth session/);
     expect(listed.error).toMatch(/API key|re-authorized/);
-    const switched = await callTool('switch_organization', { organization: 'Acme' });
+    const switched = await callTool('org_switch', { organization: 'Acme' });
     expect(switched.error).toMatch(/requires an OAuth session/);
   });
 });

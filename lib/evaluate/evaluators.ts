@@ -5,10 +5,10 @@ import { requireClient, rawFetch } from '../shared/client.js';
 
 export function registerEvaluatorTools(server: McpServer, client: AuthenticatedClient | null) {
   server.tool(
-    'list_evaluators',
-    'List all evaluators in your organization with pagination.',
+    'grader_list',
+    'List the graders in your organization, with pagination. A grader is a single scoring unit; evaluators (evaluator_list) are built from graders.',
     {
-      page_size: z.number().optional().describe('Number of evaluators to return per page.'),
+      page_size: z.number().optional().describe('Number of graders to return per page.'),
       page: z.number().optional().describe('Page number for pagination.'),
     },
     async ({ page_size, page }) => {
@@ -25,10 +25,10 @@ export function registerEvaluatorTools(server: McpServer, client: AuthenticatedC
   );
 
   server.tool(
-    'get_evaluator',
-    'Retrieve detailed information about a specific evaluator including its config.',
+    'grader_get',
+    'Retrieve one grader, including its config.',
     {
-      evaluator_id: z.string().describe('The unique identifier of the evaluator to retrieve.'),
+      evaluator_id: z.string().describe('The grader ID.'),
     },
     async ({ evaluator_id }) => {
       const c = requireClient(client);
@@ -40,8 +40,8 @@ export function registerEvaluatorTools(server: McpServer, client: AuthenticatedC
   );
 
   server.tool(
-    'create_evaluator',
-    `Create a new evaluator (grader). Evaluators score LLM outputs.
+    'grader_create',
+    `Create a new grader: a single scoring unit that scores LLM outputs. To run it on traffic or in the Evaluators page, wrap it with evaluator_create.
 
 REQUIRED: name, type, score_value_type.
 
@@ -86,15 +86,15 @@ EXAMPLE - Numerical LLM grader with rubric:
   }
 }`,
     {
-      name: z.string().describe('Evaluator name.'),
+      name: z.string().describe('Grader name.'),
       type: z
         .enum(['llm', 'code', 'human'])
-        .describe('Evaluator type: llm (requires llm_config), code (requires code_config), or human.'),
+        .describe('Grader type: llm (requires llm_config), code (requires code_config), or human.'),
       score_value_type: z
         .enum(['numerical', 'boolean', 'percentage', 'single_select', 'multi_select', 'json', 'text'])
         .describe('Score format: numerical, boolean, percentage, single_select, multi_select, json, text.'),
       evaluator_slug: z.string().optional().describe('Unique slug identifier. Auto-generated if not provided.'),
-      description: z.string().optional().describe('Evaluator description.'),
+      description: z.string().optional().describe('Grader description.'),
       score_config: z
         .object({
           min_score: z.number().optional().describe('Minimum score (for numerical/percentage).'),
@@ -146,22 +146,22 @@ EXAMPLE - Numerical LLM grader with rubric:
 
       if (type === 'llm') {
         if (!llm_config) {
-          throw new Error('LLM evaluators require llm_config. Include at minimum: { "model": "gpt-4o-mini", "evaluator_definition": "<prompt with {{output}}>" }');
+          throw new Error('LLM graders require llm_config. Include at minimum: { "model": "gpt-4o-mini", "evaluator_definition": "<prompt with {{output}}>" }');
         }
         const def = llm_config.evaluator_definition;
         if (!def) {
-          throw new Error('LLM evaluators require evaluator_definition in llm_config — the prompt template the LLM uses to score. Must contain {{output}}.');
+          throw new Error('LLM graders require evaluator_definition in llm_config — the prompt template the LLM uses to score. Must contain {{output}}.');
         }
         if (!def.includes('{{output}}')) {
-          throw new Error('evaluator_definition MUST contain the {{output}} template variable. Without it, the evaluator cannot see the output it is supposed to score.');
+          throw new Error('evaluator_definition MUST contain the {{output}} template variable. Without it, the grader cannot see the output it is supposed to score.');
         }
         if (!llm_config.model) {
-          throw new Error('LLM evaluators require llm_config.model (e.g. "gpt-4o-mini").');
+          throw new Error('LLM graders require llm_config.model (e.g. "gpt-4o-mini").');
         }
       }
       if (type === 'code') {
         if (!code_config || !code_config.eval_code_snippet) {
-          throw new Error('Code evaluators require code_config with eval_code_snippet. Include: { "eval_code_snippet": "def main(eval_inputs): ..." }');
+          throw new Error('Code graders require code_config with eval_code_snippet. Include: { "eval_code_snippet": "def main(eval_inputs): ..." }');
         }
       }
 
@@ -185,7 +185,7 @@ EXAMPLE - Numerical LLM grader with rubric:
           type: 'text' as const,
           text: JSON.stringify({
             ...result,
-            _next_steps: `Created as draft. To use in production: 1) test_evaluator with sample inputs to verify, 2) commit_evaluator to lock the version, 3) create_evaluation_pipeline to make it show on the Evaluators page.`,
+            _next_steps: `Created as draft. To use in production: 1) grader_run with sample inputs to verify, 2) grader_commit to lock the version, 3) evaluator_create to make it show on the Evaluators page.`,
             _evaluator_id: id,
           }, null, 2),
         }],
@@ -194,7 +194,7 @@ EXAMPLE - Numerical LLM grader with rubric:
   );
 
   server.tool(
-    'test_evaluator',
+    'grader_run',
     `Test-run a grader with sample inputs to verify it scores correctly BEFORE committing.
 
 Required keys in inputs: at least "input" and "output". Optional: "expected_output", "metrics", "metadata".
@@ -205,10 +205,10 @@ Example:
   "inputs": { "input": "What is 2+2?", "output": "4", "expected_output": "4" }
 }
 
-Returns the actual score (boolean_value / numerical_value / etc.) and reasoning. Use this before commit_evaluator.`,
+Returns the actual score (boolean_value / numerical_value / etc.) and reasoning. Use this before grader_commit.`,
     {
-      evaluator_id: z.string().describe('Evaluator ID (optionally with version: "id:version").'),
-      inputs: z.record(z.any()).describe('Sample data. At minimum {input, output}. Add expected_output / metrics / metadata as the evaluator needs.'),
+      evaluator_id: z.string().describe('Grader ID (optionally with version: "id:version").'),
+      inputs: z.record(z.any()).describe('Sample data. At minimum {input, output}. Add expected_output / metrics / metadata as the grader needs.'),
       generation_method: z.enum(['auto', 'llm', 'code']).optional().describe('Force evaluation method. Default: auto.'),
     },
     async ({ evaluator_id, inputs, generation_method }) => {
@@ -227,12 +227,12 @@ Returns the actual score (boolean_value / numerical_value / etc.) and reasoning.
   );
 
   server.tool(
-    'commit_evaluator',
+    'grader_commit',
     `Commit the current draft of a grader, creating a new read-only version.
 
-IMPORTANT: Only commit AFTER a successful test_evaluator run. After committing, use create_evaluation_pipeline to wrap the grader in a V2 pipeline that renders in the UI.`,
+IMPORTANT: Only commit AFTER a successful grader_run. After committing, use evaluator_create to wrap the grader in a V2 pipeline that renders in the UI.`,
     {
-      evaluator_id: z.string().describe('Evaluator ID to commit.'),
+      evaluator_id: z.string().describe('Grader ID to commit.'),
       version_description: z.string().optional().describe('Commit message describing what changed in this version.'),
     },
     async ({ evaluator_id, version_description }) => {
@@ -248,10 +248,10 @@ IMPORTANT: Only commit AFTER a successful test_evaluator run. After committing, 
   );
 
   server.tool(
-    'list_evaluator_versions',
-    'List all versions (commits) of an evaluator.',
+    'grader_versions_list',
+    'List all versions (commits) of a grader.',
     {
-      evaluator_id: z.string().describe('Evaluator ID.'),
+      evaluator_id: z.string().describe('Grader ID.'),
       page: z.number().optional().describe('Page number.'),
       page_size: z.number().optional().describe('Results per page.'),
     },
@@ -270,10 +270,10 @@ IMPORTANT: Only commit AFTER a successful test_evaluator run. After committing, 
   );
 
   server.tool(
-    'update_evaluator',
-    "Update an existing evaluator's configuration.",
+    'grader_update',
+    "Update an existing grader's configuration.",
     {
-      evaluator_id: z.string().describe('The unique identifier of the evaluator to update.'),
+      evaluator_id: z.string().describe('The grader ID to update.'),
       name: z.string().optional().describe('Updated name.'),
       description: z.string().optional().describe('Updated description.'),
       score_config: z.record(z.any()).optional().describe('Updated score configuration.'),
@@ -300,41 +300,16 @@ IMPORTANT: Only commit AFTER a successful test_evaluator run. After committing, 
   );
 
   server.tool(
-    'delete_evaluator',
-    'Permanently delete an evaluator. This action cannot be undone.',
+    'grader_delete',
+    'Permanently delete a grader. This action cannot be undone.',
     {
-      evaluator_id: z.string().describe('The unique identifier of the evaluator to delete.'),
+      evaluator_id: z.string().describe('The grader ID to delete.'),
     },
     async ({ evaluator_id }) => {
       const c = requireClient(client);
       await c.client.evaluators.deleteEvaluator({ Authorization: c.auth, evaluator_id });
       return {
         content: [{ type: 'text' as const, text: JSON.stringify({ deleted: true, evaluator_id }, null, 2) }],
-      };
-    },
-  );
-
-  server.tool(
-    'run_evaluator',
-    `Run an evaluator on a single log/span to verify it works.
-
-This is for quick verification of one record (e.g. confirm an evaluator scores as expected before running broader experiments).
-For scoring many records, create an experiment instead.
-
-Returns the actual score (boolean_value / numerical_value / etc.) and cost.`,
-    {
-      evaluator_id: z.string().describe('The unique identifier of the evaluator to run.'),
-      log_id: z.string().describe('The span/log unique ID to score (from list_experiment_spans, log_list, etc.).'),
-    },
-    async ({ evaluator_id, log_id }) => {
-      const c = requireClient(client);
-      const data = await c.client.evaluators.runEvaluator({
-        Authorization: c.auth,
-        evaluator_id,
-        log_ids: [log_id],
-      });
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
       };
     },
   );
