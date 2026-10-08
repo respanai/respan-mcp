@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { registerDocTools } from '../../lib/docs/tools.js';
+import { applyToolPolicy } from '../../lib/shared/tool-policy.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0');
@@ -28,6 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       name: 'respan-docs',
       version: '1.0.0',
     });
+    applyToolPolicy(server);
 
     registerDocTools(server);
 

@@ -13,6 +13,7 @@
     { "source": "/.well-known/oauth-protected-resource/enterprise", "destination": "/api/well-known/oauth-protected-resource-enterprise" },
     { "source": "/.well-known/oauth-protected-resource", "destination": "/api/well-known/oauth-protected-resource" },
     { "source": "/.well-known/oauth-authorization-server", "destination": "/api/well-known/oauth-authorization-server" },
+    { "source": "/.well-known/openai-apps-challenge", "destination": "/api/well-known/openai-apps-challenge" },
     { "source": "/enterprise-oauth/.well-known/oauth-authorization-server", "destination": "/api/well-known/oauth-authorization-server-enterprise" },
     { "source": "/.well-known/oauth-authorization-server/enterprise-oauth", "destination": "/api/well-known/oauth-authorization-server-enterprise" },
     { "source": "/register", "destination": "/api/oauth/register" },
@@ -98,6 +99,9 @@
       "maxDuration": 10
     },
     "api/well-known/oauth-authorization-server-enterprise.ts": {
+      "maxDuration": 10
+    },
+    "api/well-known/openai-apps-challenge.ts": {
       "maxDuration": 10
     },
     "api/oauth/register.ts": {

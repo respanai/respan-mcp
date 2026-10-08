@@ -13,6 +13,7 @@ import { registerDatasetTools } from "./evaluate/datasets.js";
 import { registerEvaluationPipelineTools } from "./evaluate/pipelines.js";
 import { registerWorkflowTools } from "./develop/workflows.js";
 import { registerOrganizationTools } from "./account/organizations.js";
+import { applyToolPolicy } from "./shared/tool-policy.js";
 
 async function main() {
   const auth = resolveAuthFromEnv();
@@ -27,6 +28,7 @@ async function main() {
     name: "respan",
     version: "1.0.0",
   });
+  applyToolPolicy(server);
 
   registerLogTools(server, client);
   registerTraceTools(server, client);

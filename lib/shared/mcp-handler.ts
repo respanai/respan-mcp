@@ -13,6 +13,7 @@ import { registerDatasetTools } from '../evaluate/datasets.js';
 import { registerEvaluationPipelineTools } from '../evaluate/pipelines.js';
 import { registerWorkflowTools } from '../develop/workflows.js';
 import { registerOrganizationTools } from '../account/organizations.js';
+import { applyToolPolicy } from './tool-policy.js';
 import { OAuthBroker, type ResolvedAccess } from '../oauth/broker.js';
 import { getOAuthConfig, type OAuthRealm } from '../oauth/config.js';
 import { InvalidAccessTokenError } from '../oauth/errors.js';
@@ -23,7 +24,7 @@ import {
   resolveAllowedBackendUrl,
 } from './backend-url.js';
 
-function createServer(
+export function createServer(
   client: AuthenticatedClient | null,
   enabledTools?: Set<string>,
 ): McpServer {
@@ -31,6 +32,7 @@ function createServer(
     name: 'respan',
     version: '1.0.0',
   });
+  applyToolPolicy(server);
 
   if (enabledTools?.size) {
     const originalTool = server.tool.bind(server);
