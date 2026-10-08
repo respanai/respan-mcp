@@ -3,9 +3,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { resolveAuthFromEnv, createClient } from "./shared/client.js";
-import { registerLogTools } from "./observe/logs.js";
-import { registerTraceTools } from "./observe/traces.js";
-import { registerUserTools } from "./observe/users.js";
+import { registerProductionTools } from "./production/index.js";
+import { registerPulseTools } from "./pulses/index.js";
 import { registerPromptTools } from "./develop/prompts.js";
 import { registerExperimentTools } from "./develop/experiments.js";
 import { registerEvaluatorTools } from "./evaluate/evaluators.js";
@@ -14,6 +13,7 @@ import { registerEvaluationPipelineTools } from "./evaluate/pipelines.js";
 import { registerWorkflowTools } from "./develop/workflows.js";
 import { registerOrganizationTools } from "./account/organizations.js";
 import { applyToolPolicy } from "./shared/tool-policy.js";
+import { rewriteToolCallNames } from "./shared/tool-aliases.js";
 
 async function main() {
   const auth = resolveAuthFromEnv();
@@ -30,9 +30,8 @@ async function main() {
   });
   applyToolPolicy(server);
 
-  registerLogTools(server, client);
-  registerTraceTools(server, client);
-  registerUserTools(server, client);
+  registerProductionTools(server, client);
+  registerPulseTools(server, client);
   registerPromptTools(server, client);
   registerExperimentTools(server, client);
   registerEvaluatorTools(server, client);
@@ -43,6 +42,12 @@ async function main() {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  // Old tool names in tools/call still reach the renamed tools.
+  const handleMessage = transport.onmessage;
+  transport.onmessage = (message) => {
+    rewriteToolCallNames(message);
+    handleMessage?.(message);
+  };
 
   console.error("Respan MCP Server running on stdio");
 }

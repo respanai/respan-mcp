@@ -1,12 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { AuthenticatedClient } from "../shared/client.js";
-import { requireClient } from "../shared/client.js";
+import { rawFetch, requireClient } from "../shared/client.js";
+import { pickArgs, registerBackendTool } from "../shared/backend-tool.js";
+import { ADDITIVE_WRITE_TOOL, DESTRUCTIVE_TOOL } from "../shared/tool-policy.js";
 
 export function registerPromptTools(server: McpServer, client: AuthenticatedClient | null) {
   // 1. List all Prompts
   server.tool(
-    "list_prompts",
+    "prompt_list",
     `List all prompts in your Respan organization.
 
 Returns a paginated list of all prompts you have created in Respan.
@@ -23,7 +25,7 @@ RESPONSE FIELDS (per prompt):
 - tags: Array of tags for organization
 
 Prompts are reusable templates that can have multiple versions.
-Use get_prompt_detail to see full prompt content, or list_prompt_versions to see all versions.`,
+Use prompt_get to see full prompt content, or prompt_versions_list to see all versions.`,
     {
       page_size: z
         .number()
@@ -43,7 +45,7 @@ Use get_prompt_detail to see full prompt content, or list_prompt_versions to see
       });
 
       // Strip bloat from list response:
-      // 1. current_version.messages can contain base64 image data (use get_prompt_detail instead)
+      // 1. current_version.messages can contain base64 image data (use prompt_get instead)
       // 2. filters_data is backend filter metadata (~80KB) not useful for agents
       const cleaned = JSON.parse(JSON.stringify(data));
       delete cleaned.filters_data;
@@ -62,7 +64,7 @@ Use get_prompt_detail to see full prompt content, or list_prompt_versions to see
 
   // 2. Get single Prompt details
   server.tool(
-    "get_prompt_detail",
+    "prompt_get",
     `Retrieve detailed information about a specific prompt.
 
 Returns complete prompt data including:
@@ -86,9 +88,9 @@ The messages field contains the actual prompt template which may include:
 - User message templates with {{variables}}
 - Assistant message examples
 
-Use list_prompts first to find the prompt_id.`,
+Use prompt_list first to find the prompt_id.`,
     {
-      prompt_id: z.string().describe("Unique prompt identifier (from list_prompts)"),
+      prompt_id: z.string().describe("Unique prompt identifier (from prompt_list)"),
     },
     async ({ prompt_id }) => {
       const c = requireClient(client);
@@ -101,7 +103,7 @@ Use list_prompts first to find the prompt_id.`,
 
   // 3. List versions of a specific Prompt
   server.tool(
-    "list_prompt_versions",
+    "prompt_versions_list",
     `List all versions of a specific prompt.
 
 Returns all versions of a prompt, allowing you to track changes over time.
@@ -122,9 +124,9 @@ RESPONSE FIELDS (per version):
 Each prompt can have multiple versions. Typically one version is marked as active
 and used in production, while others are archived or in development.
 
-Use list_prompts first to find the prompt_id.`,
+Use prompt_list first to find the prompt_id.`,
     {
-      prompt_id: z.string().describe("Unique prompt identifier (from list_prompts)"),
+      prompt_id: z.string().describe("Unique prompt identifier (from prompt_list)"),
     },
     async ({ prompt_id }) => {
       const c = requireClient(client);
@@ -137,7 +139,7 @@ Use list_prompts first to find the prompt_id.`,
 
   // 4. Get details of a specific Prompt version
   server.tool(
-    "get_prompt_version_detail",
+    "prompt_version_get",
     `Retrieve detailed information about a specific version of a prompt.
 
 Returns complete version data including:
@@ -161,13 +163,13 @@ Returns complete version data including:
 - created_by: Creator information
 - metadata: Custom metadata
 
-Use list_prompts to find prompt_id, then list_prompt_versions to find the version number.`,
+Use prompt_list to find prompt_id, then prompt_versions_list to find the version number.`,
     {
-      prompt_id: z.string().describe("Unique prompt identifier (from list_prompts)"),
+      prompt_id: z.string().describe("Unique prompt identifier (from prompt_list)"),
       version: z
         .number()
         .describe(
-          "Version number (integer, e.g. 1, 2, 3 — from the 'version' field in list_prompt_versions)"
+          "Version number (integer, e.g. 1, 2, 3 — from the 'version' field in prompt_versions_list)"
         ),
     },
     async ({ prompt_id, version }) => {
@@ -185,8 +187,8 @@ Use list_prompts to find prompt_id, then list_prompt_versions to find the versio
 
   // 5. Create a new Prompt
   server.tool(
-    "create_prompt",
-    "Create a new prompt template. Only sets name and description. Use create_prompt_version to add content.",
+    "prompt_create",
+    "Create a new prompt template. Only sets name and description. Use prompt_draft_init to add content.",
     {
       name: z.string().describe("Name for the new prompt template"),
       description: z
@@ -209,10 +211,10 @@ Use list_prompts to find prompt_id, then list_prompt_versions to find the versio
 
   // 6. Update Prompt metadata
   server.tool(
-    "update_prompt",
+    "prompt_update",
     "Update a prompt's name and/or description.",
     {
-      prompt_id: z.string().describe("Unique prompt identifier (from list_prompts)"),
+      prompt_id: z.string().describe("Unique prompt identifier (from prompt_list)"),
       name: z.string().optional().describe("New name for the prompt"),
       description: z
         .string()
@@ -235,10 +237,10 @@ Use list_prompts to find prompt_id, then list_prompt_versions to find the versio
 
   // 7. Create a new Prompt version
   server.tool(
-    "create_prompt_version",
+    "prompt_draft_init",
     "Create a new version of a prompt. The version is always created as NOT deployed.",
     {
-      prompt_id: z.string().describe("Unique prompt identifier (from list_prompts)"),
+      prompt_id: z.string().describe("Unique prompt identifier (from prompt_list)"),
       messages: z
         .array(
           z.object({
@@ -307,14 +309,14 @@ Use list_prompts to find prompt_id, then list_prompt_versions to find the versio
 
   // 8. Update an existing Prompt version
   server.tool(
-    "update_prompt_version",
+    "prompt_version_update",
     "Update an existing prompt version. Always keeps deploy: false.",
     {
-      prompt_id: z.string().describe("Unique prompt identifier (from list_prompts)"),
+      prompt_id: z.string().describe("Unique prompt identifier (from prompt_list)"),
       version: z
         .number()
         .describe(
-          "Version number to update (integer, from list_prompt_versions)"
+          "Version number to update (integer, from prompt_versions_list)"
         ),
       messages: z
         .array(
@@ -390,28 +392,52 @@ Use list_prompts to find prompt_id, then list_prompt_versions to find the versio
     }
   );
 
-  server.tool(
-    "deploy_prompt_version",
-    `Deploy a specific prompt version, making it the active version that experiments (and other workflows) will use.
-
-Background: when you create a prompt version, it starts as a draft (not deployed). The platform requires at least one DEPLOYED version before a prompt can be referenced by version number in experiments or other workflows. If you call create_experiment with a prompt workflow and see "Prompt version X not found", you forgot to deploy.
-
-Tip: in the UI it's common to have multiple versions (draft + deployed). To switch the active version, just deploy the new one — the previous deployed version stays in history.`,
-    {
-      prompt_id: z.string().describe("Unique prompt identifier (from list_prompts)"),
-      version: z.number().describe("Version number to deploy as the active version"),
-    },
-    async ({ prompt_id, version }) => {
-      const c = requireClient(client);
-      const data = await c.client.prompts.updatePromptVersion({
-        Authorization: c.auth,
-        prompt_id,
-        version,
-        deploy: true,
-      });
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
-      };
-    }
+  // Contracts for these two come from the backend catalog; the handlers mirror
+  // prompt_commit and prompt_deploy in respan-backend's prompt_tools.py.
+  registerBackendTool(server, client, "prompt_commit", ADDITIVE_WRITE_TOOL, (c, args) =>
+    rawFetch(c, `/api/prompts/${encodeURIComponent(args.prompt_id)}/commits/`, {
+      body: pickArgs(args, ["description"]),
+    }),
   );
+
+  registerBackendTool(server, client, "prompt_deploy", DESTRUCTIVE_TOOL, async (c, args) => {
+    const promptPath = `/api/prompts/${encodeURIComponent(args.prompt_id)}/`;
+    const deploy = (version: number) =>
+      rawFetch(c, `${promptPath}deployments/`, { body: { version } });
+    try {
+      return await deploy(args.version);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes("Commit it first") && !message.includes("Cannot deploy a draft")) {
+        throw error;
+      }
+    }
+    // The version is a draft. Only the prompt's current draft can be committed
+    // and deployed in one step.
+    const prompt = (await rawFetch(c, promptPath, { method: "GET" })) as {
+      current_version?: { version?: number };
+    };
+    const draftVersion = prompt?.current_version?.version;
+    if (draftVersion === undefined) {
+      throw new Error(
+        `No current draft found for prompt '${args.prompt_id}'. Create a draft first with prompt_draft_init before deploying.`,
+      );
+    }
+    if (draftVersion !== args.version) {
+      throw new Error(
+        `Version ${args.version} is not the current draft (current draft is v${draftVersion}). Only the current draft or committed versions can be deployed.`,
+      );
+    }
+    const committed = (await rawFetch(c, `${promptPath}commits/`, { body: {} })) as { version?: number };
+    const committedVersion = committed?.version ?? args.version;
+    try {
+      const result = await deploy(committedVersion);
+      return { auto_committed: true, version: committedVersion, deployment: result };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Version ${committedVersion} was committed successfully but deployment failed: ${message}. Retry with prompt_deploy(version=${committedVersion}).`,
+      );
+    }
+  });
 }

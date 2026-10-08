@@ -105,12 +105,14 @@ Share this config with your team:
 
 ## Available Tools
 
+Tool names match the ones the in-product Respan agent uses (`noun_verb`, such as `log_list` or `prompt_deploy`). Older names (`list_logs`, `get_trace_tree`, `deploy_prompt_version`, ...) still work in the `Respan-Enabled-Tools` header and in `tools/call`; they are translated to the current names (`lib/shared/tool-aliases.ts`), and only current names are listed.
+
 ### Organizations
 
 | Tool | Description |
 |------|-------------|
-| `list_organizations` | List the organizations your account can act as, and which one is active |
-| `switch_organization` | Switch the active organization by name, `organization_id`, or `team_id` |
+| `org_list` | List the organizations your account can act as, and which one is active |
+| `org_switch` | Switch the active organization by name, `organization_id`, or `team_id` |
 
 Every other tool reads and writes the **active** organization only. Switching is
 account-wide and persistent — it moves the Respan web app and any other session
@@ -118,56 +120,73 @@ to the same organization, because the backend stores the active organization on
 the user record rather than on the token. Requires an OAuth login; an API key is
 already bound to one organization and cannot switch.
 
-### Logs
+### Production
+
+What is happening in your app. Every tool here is read-only and defaults to the last 24 hours.
 
 | Tool | Description |
 |------|-------------|
-| `list_logs` | List and filter LLM request logs with powerful query capabilities |
-| `get_log_detail` | Retrieve complete details of a single log by unique ID |
-| `create_log` | Create a new log entry for any type of LLM request |
+| `log_list` | Find individual requests and spans (compact rows, no message text) |
+| `log_get` | Read one request in full: messages, output, cost, tokens, scores |
+| `trace_list` | Find agent or workflow runs, with per-run totals |
+| `trace_get` | Read one run as a tree of spans |
+| `thread_list` | Find conversations (requests sharing a `thread_identifier`) |
+| `thread_get` | Read one conversation's totals |
+| `dashboard_llm_metrics_summary` | Requests, cost, tokens, latency and error rate for a time range |
+| `dashboard_top_models` | Rank models by requests, cost, tokens, errors or latency |
+| `end_user_rank_by_usage` | Rank your app's end users the same way |
 
-### Traces
+Results leave out Respan-internal fields (org and key IDs, pricing internals, storage keys, raw request copies) and long text is shortened to keep each result small.
+
+### Behaviors and errors
+
+What the platform flags on your traffic. Names, descriptions and arguments come straight from the backend's tool catalog.
 
 | Tool | Description |
 |------|-------------|
-| `list_traces` | List and filter traces with sorting and pagination |
-| `get_trace_tree` | Retrieve complete hierarchical span tree of a trace |
-
-### Customers
-
-| Tool | Description |
-|------|-------------|
-| `list_customers` | List customers with pagination and sorting |
-| `get_customer_detail` | Get customer details including budget usage |
+| `pulse_behaviors_summary` | How often each behavior fired, with a positive/negative/neutral rollup |
+| `behavior_list` | The behaviors available to your organization (built-in and custom) |
+| `behavior_timeseries` | Behavior counts over time |
+| `behavior_grouped` | One behavior's count broken down by a log dimension |
+| `behavior_spans_list` | The spans where one behavior fired |
+| `custom_behavior_list` / `custom_behavior_get` | Your custom behaviors |
+| `custom_behavior_suggest` / `custom_behavior_analyze` | Draft custom behaviors and check their wording (saves nothing) |
+| `custom_behavior_create` / `custom_behavior_update` / `custom_behavior_delete` | Manage custom behaviors |
+| `pulse_error_groups_list` / `pulse_error_group_get` | Error issues, grouped by fingerprint, and one issue's recent occurrences |
+| `pulse_incidents_list` | Detected windows of elevated error rate |
 
 ### Prompts
 
 | Tool | Description |
 |------|-------------|
-| `list_prompts` | List all prompts in your organization |
-| `get_prompt_detail` | Get detailed prompt information |
-| `list_prompt_versions` | List all versions of a prompt |
-| `get_prompt_version_detail` | Get specific version details |
+| `prompt_list` | List all prompts in your organization |
+| `prompt_get` | Get detailed prompt information |
+| `prompt_create` / `prompt_update` | Create a prompt, or change its name and settings |
+| `prompt_versions_list` | List all versions of a prompt |
+| `prompt_version_get` | Get specific version details |
+| `prompt_draft_init` / `prompt_version_update` | Start a new draft version, or edit one |
+| `prompt_commit` | Commit the current draft as a read-only version |
+| `prompt_deploy` | Make a version live; a current draft is committed first |
 
 ### Workflows
 
 | Tool | Description |
 |------|-------------|
-| `list_workflows` | List automations, monitors, scheduled exports, and evaluator pipelines |
-| `filter_workflows` | Filter workflows by type or other fields |
-| `get_workflow` | Retrieve a workflow and its task definitions |
-| `create_automation_workflow` | Create an event-driven automation; adds the required dashboard sampling gate |
-| `create_monitor_workflow` | Create a monitor from aggregation/condition and delivery tasks |
-| `create_export_workflow` | Create a scheduled export from cron and export-specific options |
-| `create_workflow` | Advanced low-level workflow creation escape hatch |
-| `update_workflow` | Update an editable workflow draft |
-| `delete_workflow` | Delete a workflow family and all versions |
-| `list_workflow_versions` | List versions in a workflow family |
-| `get_workflow_version` | Retrieve a specific workflow version |
-| `commit_workflow` | Commit the current draft |
-| `deploy_workflow` | Deploy a committed workflow version |
-| `undeploy_workflow` | Stop a deployed workflow |
-| `validate_workflow` | Validate workflow tasks against sample data |
+| `workflow_list` | List automations, monitors, scheduled exports, and evaluator pipelines |
+| `workflow_filter` | Filter workflows by type or other fields |
+| `workflow_get` | Retrieve a workflow and its task definitions |
+| `automation_create` | Create an event-driven automation; adds the required dashboard sampling gate |
+| `monitor_create` | Create a monitor from aggregation/condition and delivery tasks |
+| `export_workflow_create` | Create a scheduled export from cron and export-specific options |
+| `workflow_create` | Advanced low-level workflow creation escape hatch |
+| `workflow_update` | Update an editable workflow draft |
+| `workflow_delete` | Delete a workflow family and all versions |
+| `workflow_versions_list` | List versions in a workflow family |
+| `workflow_version_get` | Retrieve a specific workflow version |
+| `workflow_commit` | Commit the current draft |
+| `workflow_deploy` | Deploy a committed workflow version |
+| `workflow_undeploy` | Stop a deployed workflow |
+| `workflow_validate` | Validate workflow tasks against sample data |
 
 The backend route is shared, but the MCP creation functions are intentionally separate. Automations are event-driven task pipelines and receive the dashboard-compatible `auto-sampling` gate; monitors accept aggregation, condition, and delivery tasks and require a notification or webhook; exports accept a UTC five-field cron plus export-specific filters, fields, inline-result behavior, and sampling.
 
@@ -175,20 +194,18 @@ The backend route is shared, but the MCP creation functions are intentionally se
 
 ## Filter Syntax
 
-Tools that support filtering accept a `filters` object:
+`log_list` and `trace_list` take common filters as plain parameters (`model`, `status`, `customer_identifier`, `errors_only`, ...). For anything else they accept an advanced `filters` array:
 
 ```json
-{
-  "cost": {"operator": "gt", "value": [0.01]},
-  "model": {"operator": "", "value": ["gpt-4"]},
-  "customer_identifier": {"operator": "contains", "value": ["user"]},
-  "metadata__session_id": {"operator": "", "value": ["abc123"]}
-}
+[
+  {"field": "latency", "operator": "gt", "value": [5]},
+  {"field": "metadata__session_id", "operator": "", "value": ["abc123"]}
+]
 ```
 
 **Operators:** `""` (equal), `not`, `lt`, `lte`, `gt`, `gte`, `contains`, `icontains`, `startswith`, `endswith`, `in`, `isnull`
 
-Each list tool documents the closed set of fields its backend endpoint honours; fields outside that set are rejected client-side with an error listing the supported fields (see `lib/shared/filter-fields.ts`), because the backend silently ignores unknown fields rather than returning an error. Dynamic `metadata__<key>` / `scores__<evaluator_id>` fields are supported by `list_logs` only; `list_traces` has no Map columns and cannot filter on custom metadata.
+The request-log endpoints reject unknown fields with a 400 that names the problem. The traces endpoint silently ignores them, so `trace_list` checks its fields against the closed set the backend honours (see `lib/shared/filter-fields.ts`) and rejects the rest before sending. Custom `metadata__<key>` fields work on `log_list` only; traces have no metadata columns.
 
 ---
 
@@ -200,16 +217,25 @@ respan-mcp/
 │   └── mcp.ts                # HTTP entry point (Vercel serverless function)
 ├── lib/
 │   ├── index.ts              # Stdio entry point (local mode)
+│   ├── generated/
+│   │   └── backend-tools.json # backend tool catalog (names, descriptions, schemas)
 │   ├── shared/
-│   │   └── client.ts         # API client, auth config, path validation
-│   ├── observe/
-│   │   ├── logs.ts           # list_logs, get_log_detail, create_log
-│   │   ├── traces.ts         # list_traces, get_trace_tree
-│   │   └── users.ts          # list_customers, get_customer_detail
+│   │   ├── client.ts         # API client, auth config, path validation
+│   │   ├── backend-tool.ts   # registers a tool from the backend catalog
+│   │   ├── tool-aliases.ts   # old tool names -> current names
+│   │   ├── tool-policy.ts    # read-only / destructive annotations
+│   │   └── tool-result.ts    # size budgets, internal-field stripping
+│   ├── production/
+│   │   ├── logs.ts           # log_list, log_get
+│   │   ├── traces.ts         # trace_list, trace_get
+│   │   ├── threads.ts        # thread_list, thread_get
+│   │   └── metrics.ts        # dashboard_llm_metrics_summary, dashboard_top_models, end_user_rank_by_usage
+│   ├── pulses/
+│   │   └── index.ts          # behaviors, error issues, incidents
 │   ├── account/
-│   │   └── organizations.ts  # list_organizations, switch_organization
+│   │   └── organizations.ts  # org_list, org_switch
 │   └── develop/
-│       └── prompts.ts        # list_prompts, get_prompt_detail, versions
+│       └── prompts.ts        # prompt_list, prompt_get, versions
 ├── vercel.json               # Vercel config (rewrites, function timeout)
 ├── tsconfig.json             # TypeScript config
 └── package.json
@@ -219,8 +245,19 @@ respan-mcp/
 
 - **Two entry points:** `api/mcp.ts` (HTTP via Vercel) and `lib/index.ts` (stdio for local use)
 - **Shared core:** Both entry points create an `AuthConfig` and pass it to the same tool registration functions via closures - no global mutable state
-- **Tool modules:** Organized by domain (`observe/` for runtime data, `develop/` for prompt management)
+- **Tool modules:** Organized by domain (`production/` for runtime data, `develop/` for prompt management)
 - **API client:** `lib/shared/client.ts` handles all upstream API calls with 30s timeout, path validation, and auth
+
+### Syncing with the backend
+
+`lib/generated/backend-tools.json` is a snapshot of the customer tool catalog the in-product agent uses. Tools registered with `registerBackendTool` take their name, description and arguments from it, and their handlers mirror the backend executor of the same name. To refresh it from a backend checkout:
+
+```bash
+cd ../respan-backend
+./.venv/bin/python ../respan-mcp/scripts/export_backend_tools.py --out ../respan-mcp/lib/generated/backend-tools.json
+```
+
+If a tool this server registers was renamed or removed in the backend, startup fails loudly rather than dropping it.
 
 ---
 

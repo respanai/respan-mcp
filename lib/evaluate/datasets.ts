@@ -5,7 +5,7 @@ import { requireClient } from '../shared/client.js';
 
 export function registerDatasetTools(server: McpServer, client: AuthenticatedClient | null) {
   server.tool(
-    'list_datasets',
+    'dataset_list',
     'List all datasets in your organization.',
     {
       page_size: z.number().optional().describe('Number of datasets to return per page (max 100). Defaults to 50.'),
@@ -21,7 +21,7 @@ export function registerDatasetTools(server: McpServer, client: AuthenticatedCli
   );
 
   server.tool(
-    'get_dataset',
+    'dataset_get',
     'Retrieve detailed information about a specific dataset.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset to retrieve.'),
@@ -36,7 +36,7 @@ export function registerDatasetTools(server: McpServer, client: AuthenticatedCli
   );
 
   server.tool(
-    'create_dataset',
+    'dataset_create',
     `Create a new dataset.
 
 MODES:
@@ -79,7 +79,7 @@ MODES:
   );
 
   server.tool(
-    'update_dataset',
+    'dataset_update',
     "Update a dataset's name and/or description.",
     {
       dataset_id: z.string().describe('The unique identifier of the dataset to update.'),
@@ -101,7 +101,7 @@ MODES:
   );
 
   server.tool(
-    'list_dataset_logs',
+    'dataset_logs_list',
     'List all logs (data points) in a dataset with pagination and filtering.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset.'),
@@ -135,7 +135,7 @@ MODES:
   );
 
   server.tool(
-    'retrieve_dataset_log',
+    'dataset_log_get',
     'Retrieve a specific log from a dataset by its unique ID.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset.'),
@@ -151,7 +151,7 @@ MODES:
   );
 
   server.tool(
-    'import_dataset_logs',
+    'dataset_logs_import',
     'Import existing logs into a dataset by time range and filters. Runs in the background.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset.'),
@@ -183,7 +183,7 @@ MODES:
   );
 
   server.tool(
-    'delete_dataset',
+    'dataset_delete',
     'Permanently delete a dataset and all its logs. This action cannot be undone.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset to delete.'),
@@ -198,7 +198,7 @@ MODES:
   );
 
   server.tool(
-    'replace_dataset_log',
+    'dataset_log_replace',
     'Replace (full overwrite) a log in a dataset. Updates input, output, expected_output, and/or metadata fields.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset.'),
@@ -230,7 +230,7 @@ MODES:
   );
 
   server.tool(
-    'remove_dataset_logs',
+    'dataset_logs_remove',
     'Remove one or more logs from a dataset by filter. To delete a single log, pass filter { unique_id: { operator: "eq", value: "<log_id>" } }. Pass is_deleting_all_logs=true to wipe the dataset contents.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset.'),
@@ -258,7 +258,7 @@ MODES:
   );
 
   server.tool(
-    'summarize_dataset_logs',
+    'dataset_logs_summary',
     'Get aggregated summary statistics for logs in a dataset. Pass filters to scope the summary; omit filters to summarize all logs.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset.'),
@@ -284,7 +284,7 @@ MODES:
   );
 
   server.tool(
-    'bulk_create_dataset_logs',
+    'dataset_logs_bulk_create',
     'Create one or more logs in a dataset. Pass a single-item array to insert one log. Each log can include input, output, expected_output, metadata, and metrics.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset. Use "_saved_logs" for the virtual saved-logs collection.'),
@@ -314,7 +314,7 @@ MODES:
   );
 
   server.tool(
-    'list_dataset_eval_runs',
+    'dataset_eval_runs_list',
     'List evaluation run results for a dataset. Shows past eval runs with status and results.',
     {
       dataset_id: z.string().describe('The unique identifier of the dataset.'),

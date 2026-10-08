@@ -3,9 +3,8 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { RespanClient } from '@respan/respan-api';
 import type { AuthenticatedClient } from './client.js';
-import { registerLogTools } from '../observe/logs.js';
-import { registerTraceTools } from '../observe/traces.js';
-import { registerUserTools } from '../observe/users.js';
+import { registerProductionTools } from '../production/index.js';
+import { registerPulseTools } from '../pulses/index.js';
 import { registerPromptTools } from '../develop/prompts.js';
 import { registerExperimentTools } from '../develop/experiments.js';
 import { registerEvaluatorTools } from '../evaluate/evaluators.js';
@@ -14,6 +13,7 @@ import { registerEvaluationPipelineTools } from '../evaluate/pipelines.js';
 import { registerWorkflowTools } from '../develop/workflows.js';
 import { registerOrganizationTools } from '../account/organizations.js';
 import { applyToolPolicy } from './tool-policy.js';
+import { resolveToolName, rewriteToolCallNames } from './tool-aliases.js';
 import { OAuthBroker, type ResolvedAccess } from '../oauth/broker.js';
 import { getOAuthConfig, type OAuthRealm } from '../oauth/config.js';
 import { InvalidAccessTokenError } from '../oauth/errors.js';
@@ -40,11 +40,15 @@ export function createServer(
       if (!enabledTools.has(name)) return;
       return originalTool.apply(server, arguments as any);
     };
+    const originalRegisterTool = (server as any).registerTool.bind(server);
+    (server as any).registerTool = function (name: string) {
+      if (!enabledTools.has(name)) return;
+      return originalRegisterTool.apply(server, arguments as any);
+    };
   }
 
-  registerLogTools(server, client);
-  registerTraceTools(server, client);
-  registerUserTools(server, client);
+  registerProductionTools(server, client);
+  registerPulseTools(server, client);
   registerPromptTools(server, client);
   registerExperimentTools(server, client);
   registerEvaluatorTools(server, client);
@@ -205,10 +209,11 @@ export function createMcpHandler(
         }),
         auth: `Bearer ${backendCredential}`,
         baseUrl,
+        ...(oauthAccess ? { fetch: trackedFetch } : {}),
       };
       const enabledToolsHeader = req.headers['respan-enabled-tools'] as string | undefined;
       const enabledTools = enabledToolsHeader
-        ? new Set(enabledToolsHeader.split(',').map((tool) => tool.trim()).filter(Boolean))
+        ? new Set(enabledToolsHeader.split(',').map((tool) => resolveToolName(tool.trim())).filter(Boolean))
         : undefined;
 
       const server = createServer(authenticatedClient, enabledTools);
@@ -216,6 +221,10 @@ export function createMcpHandler(
         sessionIdGenerator: undefined,
       });
       await server.connect(transport);
+      const renamedTools = rewriteToolCallNames(req.body);
+      if (renamedTools.length > 0) {
+        console.warn(`MCP tools/call used old tool name(s): ${renamedTools.join(', ')}`);
+      }
       const transportResponse = await transport.handleRequest(
         toWebRequest(req),
         { parsedBody: req.body },

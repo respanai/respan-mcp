@@ -8,7 +8,7 @@ export function registerExperimentTools(
   client: AuthenticatedClient | null
 ) {
   server.tool(
-    "list_experiments",
+    "experiment_list",
     "List all experiments in your organization.",
     {
       page_size: z.number().optional().describe("Results per page."),
@@ -28,12 +28,12 @@ export function registerExperimentTools(
   );
 
   server.tool(
-    "get_experiment",
+    "experiment_get",
     "Retrieve detailed information about a specific experiment by its ID.",
     {
       experiment_id: z
         .string()
-        .describe("Unique experiment identifier (from list_experiments)"),
+        .describe("Unique experiment identifier (from experiment_list)"),
     },
     async ({ experiment_id }) => {
       const c = requireClient(client);
@@ -48,7 +48,7 @@ export function registerExperimentTools(
   );
 
   server.tool(
-    "create_experiment",
+    "experiment_create",
     `Create and run an experiment. Processes a dataset's inputs through a workflow chain (prompt / model / passthrough) and scores results with evaluator pipelines.
 
 REQUIRED: dataset_id, workflow, evaluator_workflow_ids.
@@ -60,7 +60,7 @@ WORKFLOW TYPES (these are how each dataset row produces an output):
 - "condition": Branch based on field values. Config: { condition_policy: { "event.<field>": { operator, value } } }
 
 EVALUATOR_WORKFLOW_IDS:
-Pass PIPELINE IDs (from list_evaluation_pipelines or create_evaluation_pipeline — the "id" field, NOT "workflow_id"). These pipelines score each row after the workflow completes.
+Pass PIPELINE IDs (from evaluator_list or evaluator_create — the "id" field, NOT "workflow_id"). These pipelines score each row after the workflow completes.
 
 EXAMPLE — Compare two models on a dataset:
 {
@@ -107,7 +107,7 @@ EXAMPLE — Test a saved prompt version:
         .describe("Workflow tasks executed in order for each dataset row."),
       evaluator_workflow_ids: z
         .array(z.string())
-        .describe("Evaluator PIPELINE IDs (the 'id' from list_evaluation_pipelines / create_evaluation_pipeline, NOT 'workflow_id'). At least one required."),
+        .describe("Evaluator PIPELINE IDs (the 'id' from evaluator_list / evaluator_create, NOT 'workflow_id'). At least one required."),
       name: z.string().optional().describe("Experiment name."),
       description: z.string().optional().describe("Experiment description."),
       batch_size: z.number().optional().describe("Rows processed per batch (default: 100)."),
@@ -116,7 +116,7 @@ EXAMPLE — Test a saved prompt version:
     },
     async ({ dataset_id, workflow, evaluator_workflow_ids, name, description, batch_size, concurrency, enable_tracing }) => {
       if (!evaluator_workflow_ids?.length) {
-        throw new Error("evaluator_workflow_ids is required. At least one evaluator pipeline ID is needed. Use list_evaluation_pipelines or create_evaluation_pipeline first.");
+        throw new Error("evaluator_workflow_ids is required. At least one evaluator pipeline ID is needed. Use evaluator_list or evaluator_create first.");
       }
       const c = requireClient(client);
       const normalizedWorkflow = workflow.map(w => ({ ...w, config: w.config || {} }));
@@ -138,12 +138,12 @@ EXAMPLE — Test a saved prompt version:
   );
 
   server.tool(
-    "list_experiment_spans",
+    "experiment_logs_list",
     "List all spans (execution traces) for a specific experiment.",
     {
       experiment_id: z
         .string()
-        .describe("Unique experiment identifier (from list_experiments)"),
+        .describe("Unique experiment identifier (from experiment_list)"),
     },
     async ({ experiment_id }) => {
       const c = requireClient(client);
@@ -158,15 +158,15 @@ EXAMPLE — Test a saved prompt version:
   );
 
   server.tool(
-    "get_experiment_span",
+    "experiment_log_get",
     "Retrieve detailed information about a specific span within an experiment.",
     {
       experiment_id: z
         .string()
-        .describe("Unique experiment identifier (from list_experiments)"),
+        .describe("Unique experiment identifier (from experiment_list)"),
       log_id: z
         .string()
-        .describe("Unique span/log identifier (from list_experiment_spans)"),
+        .describe("Unique span/log identifier (from experiment_logs_list)"),
     },
     async ({ experiment_id, log_id }) => {
       const c = requireClient(client);
@@ -182,10 +182,10 @@ EXAMPLE — Test a saved prompt version:
   );
 
   server.tool(
-    "delete_experiment",
+    "experiment_delete",
     "Permanently delete an experiment and its spans. This action cannot be undone.",
     {
-      experiment_id: z.string().describe("Unique experiment identifier (from list_experiments)"),
+      experiment_id: z.string().describe("Unique experiment identifier (from experiment_list)"),
     },
     async ({ experiment_id }) => {
       const c = requireClient(client);
@@ -200,7 +200,7 @@ EXAMPLE — Test a saved prompt version:
   );
 
   server.tool(
-    "get_experiment_score_averages",
+    "experiment_score_averages",
     `Compute average score per evaluator for an experiment by walking the spans client-side.
 
 Use this when the backend summary/histogram endpoints return empty score aggregates (known issue on some experiments). Returns avg, min, max, and count per evaluator. Pages through up to max_spans (default 500).`,

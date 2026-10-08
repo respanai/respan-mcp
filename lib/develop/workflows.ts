@@ -471,7 +471,7 @@ export function registerWorkflowTools(
   client: AuthenticatedClient | null
 ) {
   server.tool(
-    "list_workflows",
+    "workflow_list",
     "List workflow families in your organization. Each family appears once: the editable draft when present, otherwise its latest committed version.",
     {
       page: z.number().int().min(1).optional().describe("Page number (default 1)."),
@@ -491,7 +491,7 @@ export function registerWorkflowTools(
   );
 
   server.tool(
-    "filter_workflows",
+    "workflow_filter",
     `Filter workflows by type and other fields.
 
 Use the filters parameter to scope by type:
@@ -519,7 +519,7 @@ Use the filters parameter to scope by type:
   );
 
   server.tool(
-    "get_workflow",
+    "workflow_get",
     "Retrieve a workflow family with its task definitions. Returns the editable draft when present, otherwise the latest committed version.",
     {
       workflow_id: z.string().min(1).describe("Family workflow_id (not a version-row id)."),
@@ -534,7 +534,7 @@ Use the filters parameter to scope by type:
   );
 
   server.tool(
-    "create_automation_workflow",
+    "automation_create",
     `Create an event-driven Automation workflow.
 
 This tool fixes type to "automations" and automatically prepends the dashboard-compatible
@@ -552,7 +552,7 @@ generation_method and method-specific configuration automatically.`,
     },
     async ({ name, description, trigger_event_type, sampling_rate, tasks, is_starred }) => {
       if (tasks.some((task) => task.id === "auto-sampling")) {
-        throw new Error('Do not include task ID "auto-sampling"; create_automation_workflow adds it automatically.');
+        throw new Error('Do not include task ID "auto-sampling"; automation_create adds it automatically.');
       }
       validateProductTasks(tasks);
       const c = requireClient(client);
@@ -583,7 +583,7 @@ generation_method and method-specific configuration automatically.`,
   );
 
   server.tool(
-    "create_monitor_workflow",
+    "monitor_create",
     `Create an event-driven Monitor workflow.
 
 Monitor tasks are intentionally limited to aggregation, condition, notification, and webhook.
@@ -619,7 +619,7 @@ for time windows and condition for the alert threshold.`,
   );
 
   server.tool(
-    "create_export_workflow",
+    "export_workflow_create",
     `Create a scheduled request-log Export workflow.
 
 This tool fixes type to "exports" and trigger_event_type to "scheduled", then builds the
@@ -660,14 +660,14 @@ with a minimum interval of five minutes.`,
   );
 
   server.tool(
-    "create_workflow",
-    `Advanced low-level workflow creation. Prefer create_automation_workflow, create_monitor_workflow, or create_export_workflow for the three product workflows because those tools enforce product-specific inputs.
+    "workflow_create",
+    `Advanced low-level workflow creation. Prefer automation_create, monitor_create, or export_workflow_create for the three product workflows because those tools enforce product-specific inputs.
 
 TYPES:
 - "monitors": Aggregation + threshold monitoring with notifications (Monitors page)
 - "automations": Triggered actions on log/trace events (Automations page)
 - "exports": Scheduled, continuous request-log exports. Requires trigger_event_type="scheduled", schedule_cron, and an export task.
-- "evaluators": Evaluator pipelines. Prefer create_evaluation_pipeline when wrapping graders.
+- "evaluators": Evaluator pipelines. Prefer evaluator_create when wrapping graders.
 - "reports" and "ingests": Backend-supported advanced workflow families.
 
 TRIGGER EVENT TYPES:
@@ -690,7 +690,7 @@ TASK TYPES:
 - notification: Alert. Config: { severity: "high", message_template: "Cost: $\{{state.agg.cost_sum}}" }
   Use {{variable}} for template variables.
 - webhook: HTTP callback. Config: { webhook_url: "https://...", source: "event" }
-- eval: Advanced callers must put generation_method at task root and supply evaluator_id plus the method-specific llm_config/code_config/human_config in config. Prefer create_automation_workflow for automatic evaluator hydration.
+- eval: Advanced callers must put generation_method at task root and supply evaluator_id plus the method-specific llm_config/code_config/human_config in config. Prefer automation_create for automatic evaluator hydration.
 - ingest: Save to dataset. Config: { target_type: "dataset", target: { dataset_id: "<uuid>" } }
 - sampling: Random filter. Config: { rate: 0.1 } (10% of events)
 - compute: Arithmetic on upstream outputs. Config: { function: "ratio", inputs: [{ source: "state.<id>", field: "<field>" }] }
@@ -745,7 +745,7 @@ EXAMPLE - Hourly export workflow:
             type: z.enum(["sampling", "throttle", "webhook", "aggregation", "condition", "notification", "ingest", "switch", "compute", "transform", "eval", "workflow", "prompt", "completion", "duplicate", "wait", "for_each", "retry", "export", "get_logs", "limit_breaches", "get_pulse", "pulse_summarize"]).describe("Backend task discriminator."),
             label: z.string().optional().describe("Human-readable task label. Required for eval tasks; recommended for every task."),
             next: z.string().optional().describe("Explicit next task ID. When omitted, the backend auto-chains sequential tasks."),
-            config: z.record(z.any()).describe("Task-specific configuration (see create_workflow description for details per type)."),
+            config: z.record(z.any()).describe("Task-specific configuration (see workflow_create description for details per type)."),
           }).passthrough()
         )
         .optional()
@@ -773,10 +773,10 @@ EXAMPLE - Hourly export workflow:
   );
 
   server.tool(
-    "create_workflow_draft",
+    "workflow_draft_create",
     `Create an editable draft for a committed workflow family.
 
-Structural update_workflow calls require a draft. This tool reads the latest committed
+Structural workflow_update calls require a draft. This tool reads the latest committed
 version (including stored webhook secrets), copies its editable fields, and POSTs that
 content to /api/workflows/{workflow_id}/versions/. It refuses to create a second draft.`,
     {
@@ -820,8 +820,8 @@ content to /api/workflows/{workflow_id}/versions/. It refuses to create a second
   );
 
   server.tool(
-    "update_workflow",
-    "Update a workflow draft. Structural edits return 409 when the family is committed-only; call create_workflow_draft first. Metadata-only edits may update a committed family directly.",
+    "workflow_update",
+    "Update a workflow draft. Structural edits return 409 when the family is committed-only; call workflow_draft_create first. Metadata-only edits may update a committed family directly.",
     {
       workflow_id: z.string().min(1).describe("Family workflow_id (not a version-row id)."),
       name: z.string().optional().describe("Updated name."),
@@ -859,7 +859,7 @@ content to /api/workflows/{workflow_id}/versions/. It refuses to create a second
   );
 
   server.tool(
-    "delete_workflow",
+    "workflow_delete",
     "Permanently delete a workflow family and every version it contains. Requires the current workflow name as confirmation.",
     {
       workflow_id: z.string().min(1).describe("Family workflow_id (not a version-row id)."),
@@ -887,7 +887,7 @@ content to /api/workflows/{workflow_id}/versions/. It refuses to create a second
   );
 
   server.tool(
-    "list_workflow_versions",
+    "workflow_versions_list",
     "List every draft and committed version row in a workflow family.",
     {
       workflow_id: z.string().min(1).describe("Family workflow_id (not a version-row id)."),
@@ -908,7 +908,7 @@ content to /api/workflows/{workflow_id}/versions/. It refuses to create a second
   );
 
   server.tool(
-    "get_workflow_version",
+    "workflow_version_get",
     "Retrieve a specific version of a workflow.",
     {
       workflow_id: z.string().min(1).describe("Family workflow_id (not a version-row id)."),
@@ -928,16 +928,16 @@ content to /api/workflows/{workflow_id}/versions/. It refuses to create a second
   );
 
   server.tool(
-    "commit_workflow",
+    "workflow_commit",
     `Commit the current draft of a workflow/pipeline, locking it as a read-only version that can be deployed.
 
-REQUIRED before deploy_workflow. The deploy endpoint rejects calls if no committed version exists.
+REQUIRED before workflow_deploy. The deploy endpoint rejects calls if no committed version exists.
 Calls POST /api/workflows/{id}/commits/ (the correct platform endpoint — different from the SDK's createWorkflowVersion which doesn't actually commit).
 
 Flow:
-1. create_workflow (or create_evaluation_pipeline) — creates a draft
-2. commit_workflow — locks current draft as read-only
-3. deploy_workflow — makes the committed version live
+1. workflow_create (or evaluator_create) — creates a draft
+2. workflow_commit — locks current draft as read-only
+3. workflow_deploy — makes the committed version live
 
 Applies to automations, monitors, export workflows, and evaluator pipelines.`,
     {
@@ -957,13 +957,13 @@ Applies to automations, monitors, export workflows, and evaluator pipelines.`,
   );
 
   server.tool(
-    "deploy_workflow",
+    "workflow_deploy",
     `Deploy a committed workflow/pipeline version as the active (live) version.
 
 Calls POST /api/workflows/{id}/deployments/ (the correct platform endpoint — different from the SDK's deployWorkflow).
 If version is omitted, deploys the latest committed version.
 
-REQUIREMENT: must call commit_workflow first. If no committed version exists, deploy returns 404 "Committed version not found".`,
+REQUIREMENT: must call workflow_commit first. If no committed version exists, deploy returns 404 "Committed version not found".`,
     {
       workflow_id: z.string().min(1).describe("Family workflow_id (not a version-row id)."),
       version: z.number().int().min(1).optional().describe("Specific version number to deploy. Omit for latest committed."),
@@ -981,7 +981,7 @@ REQUIREMENT: must call commit_workflow first. If no committed version exists, de
   );
 
   server.tool(
-    "undeploy_workflow",
+    "workflow_undeploy",
     "Undeploy a workflow, stopping it from processing events.",
     {
       workflow_id: z.string().min(1).describe("Family workflow_id (not a version-row id)."),
@@ -998,12 +998,12 @@ REQUIREMENT: must call commit_workflow first. If no committed version exists, de
   );
 
   server.tool(
-    "validate_workflow",
+    "workflow_validate",
     `Validate the latest editable draft's structure and task configuration.
 
 WARNING: this sends real preview notifications and webhooks for delivery tasks. It does not
 fetch or run against request logs, and it cannot validate a committed-only family; call
-create_workflow_draft first when needed.`,
+workflow_draft_create first when needed.`,
     {
       workflow_id: z.string().min(1).describe("Family workflow_id (not a version-row id)."),
       confirm_preview_deliveries: z.literal(true).describe("Must be true to acknowledge that validation sends real preview notifications and webhooks."),

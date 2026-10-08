@@ -5,7 +5,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { createServer } from '../lib/shared/mcp-handler.js';
 import { registerDocTools } from '../lib/docs/tools.js';
-import { applyToolPolicy, HIDDEN_TOOLS, TOOL_ANNOTATIONS } from '../lib/shared/tool-policy.js';
+import { applyToolPolicy, TOOL_ANNOTATIONS, unannotatedTools } from '../lib/shared/tool-policy.js';
 import handleChallenge from '../api/well-known/openai-apps-challenge.js';
 
 async function listTools(server: McpServer): Promise<Tool[]> {
@@ -26,22 +26,16 @@ function docsServer(): McpServer {
 }
 
 describe('tool policy', () => {
-  it('annotates every tool on /mcp and /mcp/docs with the three hints', async () => {
+  it('gives every tool on /mcp and /mcp/docs all three hints', async () => {
     const tools = [...await listTools(createServer(null)), ...await listTools(docsServer())];
     expect(tools.length).toBeGreaterThan(0);
     for (const tool of tools) {
-      expect(TOOL_ANNOTATIONS, `${tool.name} is missing from TOOL_ANNOTATIONS`).toHaveProperty(tool.name);
       expect(typeof tool.annotations?.readOnlyHint, tool.name).toBe('boolean');
       expect(typeof tool.annotations?.destructiveHint, tool.name).toBe('boolean');
       expect(typeof tool.annotations?.openWorldHint, tool.name).toBe('boolean');
     }
-  });
-
-  it('does not register the hidden tools', async () => {
-    const names = (await listTools(createServer(null))).map((tool) => tool.name);
-    for (const hidden of HIDDEN_TOOLS) {
-      expect(names).not.toContain(hidden);
-    }
+    // server.tool registrations must come from the table, not the fallback.
+    expect(unannotatedTools()).toEqual([]);
   });
 
   it('has no table entries for tools that no longer exist', async () => {
@@ -54,21 +48,33 @@ describe('tool policy', () => {
     }
   });
 
-  it('marks deletes and overwrites as destructive and reads as read-only', async () => {
+  it('no longer lists the removed broken tools', async () => {
+    const names = (await listTools(createServer(null))).map((tool) => tool.name);
+    expect(names).not.toContain('run_evaluator');
+    expect(names).not.toContain('deploy_prompt_version');
+  });
+
+  it('marks deletes, overwrites and deploys as destructive and reads as read-only', async () => {
     const tools = new Map((await listTools(createServer(null))).map((tool) => [tool.name, tool]));
-    for (const name of ['delete_dataset', 'update_prompt', 'deploy_workflow', 'validate_workflow']) {
-      expect(tools.get(name)?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+    for (const name of [
+      'dataset_delete', 'prompt_update', 'workflow_deploy', 'workflow_validate',
+      'prompt_deploy', 'custom_behavior_delete', 'custom_behavior_update',
+    ]) {
+      expect(tools.get(name)?.annotations, name).toMatchObject({ readOnlyHint: false, destructiveHint: true });
     }
-    for (const name of ['list_traces', 'get_prompt_detail', 'list_datasets']) {
-      expect(tools.get(name)?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    for (const name of [
+      'trace_list', 'prompt_get', 'dataset_list', 'behavior_list', 'pulse_error_groups_list',
+    ]) {
+      expect(tools.get(name)?.annotations, name).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     }
-    expect(tools.get('create_prompt')?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });
+    for (const name of ['prompt_create', 'prompt_commit', 'custom_behavior_create']) {
+      expect(tools.get(name)?.annotations, name).toMatchObject({ readOnlyHint: false, destructiveHint: false });
+    }
   });
 
   it('keeps the respan-enabled-tools filter working', async () => {
-    const tools = await listTools(createServer(null, new Set(['list_traces', 'run_evaluator'])));
-    expect(tools.map((tool) => tool.name)).toEqual(['list_traces']);
-    expect(tools[0].annotations?.readOnlyHint).toBe(true);
+    const tools = await listTools(createServer(null, new Set(['trace_list', 'behavior_list'])));
+    expect(tools.map((tool) => tool.name).sort()).toEqual(['behavior_list', 'trace_list']);
   });
 });
 
