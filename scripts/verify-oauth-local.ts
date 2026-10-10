@@ -172,7 +172,9 @@ async function createRedisInspector(): Promise<RedisInspector> {
     delete: async (keys) => {
       if (keys.length > 0) await client.del(keys);
     },
-    close: () => client.quit(),
+    close: async () => {
+      await client.quit();
+    },
   };
 }
 
