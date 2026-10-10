@@ -20,6 +20,7 @@
     "api/oauth/**/*",
     "api/mcp.ts",
     "api/mcp/enterprise.ts",
+    "api/mcp/docs.ts",
     "api/well-known/**/*"
   ],
   "exclude": ["node_modules", "dist", "src", "scripts", "tests"]

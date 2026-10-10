@@ -290,7 +290,24 @@ For custom API endpoints, set the `RESPAN_API_BASE_URL` environment variable:
 ```bash
 npm run build        # Compile TypeScript
 npm run stdio        # Build and run in stdio mode
+npm run check        # Type-check src, tests and scripts, then run the tests
 ```
+
+CI (`.github/workflows/ci.yml`) runs `npm ci`, `npm run check` and
+`npm run build` on every pull request. Vercel deploys main to Production on
+merge without running tests, so a red check means the change is not ready to
+merge.
+
+`tests/tool-surface.test.ts` checks every tool clients see:
+- the tool name;
+- the description length (Claude Code truncates past 2,048 characters);
+- that the input schema compiles;
+- the total `tools/list` size and which tools lack a title, against
+  `tests/fixtures/tool-surface.baseline.json`.
+
+If you add or change tools on purpose and the size check fails, run
+`npm run surface:update` and commit the new baseline with the change. The
+size diff then shows up in review.
 
 ### Local OAuth broker
 
@@ -390,7 +407,7 @@ procedure, see [Public MCP OAuth Broker: Vercel Deployment Runbook](docs/vercel-
 Automated checks:
 
 ```bash
-npm test
+npm run check
 TEST_REDIS_URL=redis://127.0.0.1:6379/15 npm test -- --run tests/redis-store.integration.test.ts
 npm run build
 git diff --check
