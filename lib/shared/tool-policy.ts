@@ -37,9 +37,6 @@ export const DESTRUCTIVE_TOOL: ToolAnnotations = {
 };
 const DESTRUCTIVE = DESTRUCTIVE_TOOL;
 
-/** Sends real notifications and webhooks, which cannot be taken back. */
-const SENDS_MESSAGES: ToolAnnotations = { ...DESTRUCTIVE, openWorldHint: true };
-
 export const TOOL_ANNOTATIONS: Readonly<Record<string, ToolAnnotations>> = {
   // Prompts (prompt_commit and prompt_deploy carry their own)
   prompt_list: READ,
@@ -50,63 +47,6 @@ export const TOOL_ANNOTATIONS: Readonly<Record<string, ToolAnnotations>> = {
   prompt_draft_init: WRITE,
   prompt_update: DESTRUCTIVE,
   prompt_version_update: DESTRUCTIVE,
-
-  // Experiments
-  experiment_list: READ,
-  experiment_get: READ,
-  experiment_logs_list: READ,
-  experiment_log_get: READ,
-  experiment_score_averages: READ,
-  experiment_create: WRITE,
-  experiment_delete: DESTRUCTIVE,
-
-  // Workflows
-  workflow_list: READ,
-  workflow_filter: READ,
-  workflow_get: READ,
-  workflow_versions_list: READ,
-  workflow_version_get: READ,
-  workflow_create: WRITE,
-  automation_create: WRITE,
-  monitor_create: WRITE,
-  export_workflow_create: WRITE,
-  workflow_draft_create: WRITE,
-  workflow_commit: WRITE,
-  workflow_update: DESTRUCTIVE,
-  workflow_deploy: DESTRUCTIVE,
-  workflow_undeploy: DESTRUCTIVE,
-  workflow_delete: DESTRUCTIVE,
-  workflow_validate: SENDS_MESSAGES,
-
-  // Datasets
-  dataset_list: READ,
-  dataset_get: READ,
-  dataset_logs_list: READ,
-  dataset_log_get: READ,
-  dataset_logs_summary: READ,
-  dataset_eval_runs_list: READ,
-  dataset_create: WRITE,
-  dataset_logs_import: WRITE,
-  dataset_logs_bulk_create: WRITE,
-  dataset_update: DESTRUCTIVE,
-  dataset_log_replace: DESTRUCTIVE,
-  dataset_logs_remove: DESTRUCTIVE,
-  dataset_delete: DESTRUCTIVE,
-
-  // Graders (single scoring units) and evaluators (pipelines built from them)
-  grader_list: READ,
-  grader_get: READ,
-  grader_versions_list: READ,
-  grader_create: WRITE,
-  grader_commit: WRITE,
-  // A dry run that saves nothing, but it makes a billed LLM call.
-  grader_run: WRITE,
-  grader_update: DESTRUCTIVE,
-  grader_delete: DESTRUCTIVE,
-  evaluator_list: READ,
-  evaluator_get: READ,
-  evaluator_create: WRITE,
-  evaluator_update: DESTRUCTIVE,
 
   // Account
   org_list: READ,

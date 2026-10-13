@@ -1,3 +1,4 @@
+import { registerMonitorTools } from "../develop/monitors.js";
 import { applyToolCatalog } from './tool-catalog.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
@@ -7,11 +8,6 @@ import type { AuthenticatedClient } from './client.js';
 import { registerProductionTools } from '../production/index.js';
 import { registerPulseTools } from '../pulses/index.js';
 import { registerPromptTools } from '../develop/prompts.js';
-import { registerExperimentTools } from '../develop/experiments.js';
-import { registerEvaluatorTools } from '../evaluate/evaluators.js';
-import { registerDatasetTools } from '../evaluate/datasets.js';
-import { registerEvaluationPipelineTools } from '../evaluate/pipelines.js';
-import { registerWorkflowTools } from '../develop/workflows.js';
 import { registerOrganizationTools } from '../account/organizations.js';
 import { applyToolPolicy } from './tool-policy.js';
 import { resolveToolName, rewriteToolCallNames } from './tool-aliases.js';
@@ -52,11 +48,7 @@ export function createServer(
   registerProductionTools(server, client);
   registerPulseTools(server, client);
   registerPromptTools(server, client);
-  registerExperimentTools(server, client);
-  registerEvaluatorTools(server, client);
-  registerDatasetTools(server, client);
-  registerEvaluationPipelineTools(server, client);
-  registerWorkflowTools(server, client);
+  registerMonitorTools(server, client);
   registerOrganizationTools(server, client);
   return server;
 }

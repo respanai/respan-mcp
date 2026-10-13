@@ -5,22 +5,19 @@ export const TOOL_CATEGORY_META_KEY = 'respan/category';
 
 export const TOOL_CATEGORIES = [
   'workspace', 'traces', 'logs', 'conversations', 'metrics', 'behaviors',
-  'errors', 'monitors', 'prompts', 'custom-behaviors', 'automations',
-  'exports', 'workflows', 'datasets', 'graders', 'evaluators', 'experiments', 'docs',
+  'errors', 'monitors', 'prompts', 'docs',
 ] as const;
 export type ToolCategory = typeof TOOL_CATEGORIES[number];
 
 export function toolCategory(name: string): ToolCategory {
-  if (name.startsWith('custom_behavior_')) return 'custom-behaviors';
+  if (name.startsWith('custom_behavior_')) return 'behaviors';
   if (name.startsWith('behavior_') || name === 'pulse_behaviors_summary') return 'behaviors';
   if (name.startsWith('pulse_error_') || name === 'pulse_incidents_list') return 'errors';
   if (name.startsWith('dashboard_') || name.startsWith('end_user_')) return 'metrics';
-  if (name.startsWith('export_workflow_')) return 'exports';
   const prefixes: Record<string, ToolCategory> = {
     org: 'workspace', trace: 'traces', log: 'logs', thread: 'conversations',
-    monitor: 'monitors', prompt: 'prompts', automation: 'automations',
-    workflow: 'workflows', dataset: 'datasets', grader: 'graders',
-    evaluator: 'evaluators', experiment: 'experiments', docs: 'docs',
+    monitor: 'monitors', notification: 'monitors', prompt: 'prompts',
+    docs: 'docs',
   };
   const category = prefixes[name.split('_')[0]];
   if (!category) throw new Error(`Tool '${name}' has no discovery category.`);

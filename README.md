@@ -4,9 +4,9 @@ Model Context Protocol (MCP) server for [Respan](https://respan.ai) - access log
 
 ## Features
 
-- **Logs** - Query, filter, and create LLM request logs
-- **Traces** - View complete execution traces with span trees
-- **Customers** - Access customer data and budget information
+- **Logs and traces** - Query requests and inspect complete execution trees
+- **Behaviors and errors** - Analyze quality signals, errors, and incidents
+- **Monitors** - Manage alerts, versions, deployment, and delivery history
 - **Prompts** - Manage prompt templates and versions
 
 ---
@@ -168,10 +168,31 @@ What the platform flags on your traffic. Names, descriptions and arguments come 
 | `prompt_commit` | Commit the current draft as a read-only version |
 | `prompt_deploy` | Make a version live; a current draft is committed first |
 
-### Workflows
+### Monitors
 
 | Tool | Description |
 |------|-------------|
+| `monitor_list` / `monitor_get` | Find monitors and inspect one using its family ID |
+| `monitor_create` / `monitor_update` | Create or edit a monitor; editing a committed family forks a complete draft |
+| `monitor_version_list` | Inspect the monitor's versions |
+| `monitor_commit` / `monitor_deploy` / `monitor_undeploy` | Commit a draft, make a version live, or stop delivery |
+| `monitor_delete` | Delete a monitor after matching its current name |
+| `monitor_run_history` / `monitor_runs_time_series` | Read delivered-alert history and bucketed alert counts |
+| `notification_method_list` / `notification_method_get` | Find existing notification destinations for monitor tasks |
+
+Monitor tools reuse the backend's customer schemas and pin the resource type to
+monitors. Mutations check the resource type before writing. An update that needs
+a new draft copies all existing content, including stored webhook secrets, then
+applies the edit; secrets are omitted from tool responses. History counts alerts,
+not all executions. An empty alert history does not mean the monitor never ran.
+
+The public surface no longer registers `automation_*`, `evaluator_*`, `grader_*`,
+generic `workflow_*`, `dataset_*`, `experiment_*`, or `export_workflow_create`. Their backend resources remain
+available internally. Clients using those removed MCP names must migrate;
+generic workflow calls cannot safely be aliased to monitors because their IDs
+may identify another resource type. Datasets and experiments are also absent from this public product surface.
+
+------|-------------|
 | `workflow_list` | List automations, monitors, scheduled exports, and evaluator pipelines |
 | `workflow_filter` | Filter workflows by type or other fields |
 | `workflow_get` | Retrieve a workflow and its task definitions |
@@ -418,9 +439,9 @@ respan tools list --category behaviors --json
 ```
 
 Core categories: workspace, traces, logs, conversations, metrics, behaviors,
-errors, monitors, prompts, and custom-behaviors. Other existing capabilities
-remain distinct: automations, exports, workflow lifecycle, datasets, graders,
-evaluators, experiments, and public docs search. New tools must resolve to a
+errors, monitors, and prompts. Custom behavior definitions
+are part of behaviors; notification destinations are part of monitors. Public docs
+search is a separate docs category. New tools must resolve to a
 category; discovery tests exercise the actual registered server.
 
 For tracing investigations, use behavior analytics with `scope: "traces"` and

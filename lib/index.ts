@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { registerMonitorTools } from "./develop/monitors.js";
 import { applyToolCatalog } from './shared/tool-catalog.js';
 // Entry point for Respan MCP Server (stdio mode)
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -7,11 +8,6 @@ import { resolveAuthFromEnv, createClient } from "./shared/client.js";
 import { registerProductionTools } from "./production/index.js";
 import { registerPulseTools } from "./pulses/index.js";
 import { registerPromptTools } from "./develop/prompts.js";
-import { registerExperimentTools } from "./develop/experiments.js";
-import { registerEvaluatorTools } from "./evaluate/evaluators.js";
-import { registerDatasetTools } from "./evaluate/datasets.js";
-import { registerEvaluationPipelineTools } from "./evaluate/pipelines.js";
-import { registerWorkflowTools } from "./develop/workflows.js";
 import { registerOrganizationTools } from "./account/organizations.js";
 import { applyToolPolicy } from "./shared/tool-policy.js";
 import { rewriteToolCallNames } from "./shared/tool-aliases.js";
@@ -35,11 +31,7 @@ async function main() {
   registerProductionTools(server, client);
   registerPulseTools(server, client);
   registerPromptTools(server, client);
-  registerExperimentTools(server, client);
-  registerEvaluatorTools(server, client);
-  registerDatasetTools(server, client);
-  registerEvaluationPipelineTools(server, client);
-  registerWorkflowTools(server, client);
+  registerMonitorTools(server, client);
   registerOrganizationTools(server, client);
 
   const transport = new StdioServerTransport();

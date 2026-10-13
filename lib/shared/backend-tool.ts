@@ -38,8 +38,9 @@ export function registerBackendTool(
   name: string,
   annotations: ToolAnnotations,
   handler: BackendToolHandler,
+  contract?: BackendToolContract,
 ): void {
-  const tool = BACKEND_TOOLS.get(name);
+  const tool = contract ?? BACKEND_TOOLS.get(name);
   if (!tool) {
     // A rename in the backend must fail loudly rather than drop the tool.
     throw new Error(`registerBackendTool: '${name}' is not in lib/generated/backend-tools.json`);
