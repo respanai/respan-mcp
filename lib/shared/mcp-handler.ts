@@ -1,4 +1,5 @@
 import { registerMonitorTools } from "../develop/monitors.js";
+import { applyProductVocabulary } from './product-vocabulary.js';
 import { applyToolCatalog } from './tool-catalog.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
@@ -30,17 +31,19 @@ export function createServer(
     version: '1.0.0',
   });
   applyToolPolicy(server);
+  applyProductVocabulary(server);
   applyToolCatalog(server);
 
   if (enabledTools?.size) {
+    const enabledNames = new Set([...enabledTools].map(resolveToolName));
     const originalTool = server.tool.bind(server);
     (server as any).tool = function (name: string) {
-      if (!enabledTools.has(name)) return;
+      if (!enabledNames.has(resolveToolName(name))) return;
       return originalTool.apply(server, arguments as any);
     };
     const originalRegisterTool = (server as any).registerTool.bind(server);
     (server as any).registerTool = function (name: string) {
-      if (!enabledTools.has(name)) return;
+      if (!enabledNames.has(resolveToolName(name))) return;
       return originalRegisterTool.apply(server, arguments as any);
     };
   }

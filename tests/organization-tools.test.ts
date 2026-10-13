@@ -90,6 +90,7 @@ type ToolHandler = (args: any) => Promise<{ content: Array<{ text: string }> }>;
 function registerTools() {
   const handlers = new Map<string, ToolHandler>();
   const server = {
+    registerTool: (name: string, _config: unknown, handler: ToolHandler) => { handlers.set(name, handler); },
     tool: (name: string, _description: string, _schema: unknown, handler: ToolHandler) => {
       handlers.set(name, handler);
     },
@@ -120,9 +121,9 @@ describe('organization tools', () => {
     vi.unstubAllGlobals();
   });
 
-  it('registers both tools', () => {
+  it('registers workspace selection and current identity', () => {
     expect([...registerTools().keys()].sort())
-      .toEqual(['org_list', 'org_switch']);
+      .toEqual(['org_list', 'org_switch', 'workspace_current']);
   });
 
   it('lists organizations with the active one flagged', async () => {

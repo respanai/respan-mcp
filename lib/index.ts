@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { registerMonitorTools } from "./develop/monitors.js";
+import { applyProductVocabulary } from './shared/product-vocabulary.js';
 import { applyToolCatalog } from './shared/tool-catalog.js';
 // Entry point for Respan MCP Server (stdio mode)
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -26,6 +27,7 @@ async function main() {
     version: "1.0.0",
   });
   applyToolPolicy(server);
+  applyProductVocabulary(server);
   applyToolCatalog(server);
 
   registerProductionTools(server, client);

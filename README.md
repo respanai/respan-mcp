@@ -103,113 +103,50 @@ Share this config with your team:
 
 ---
 
-## Available Tools
+## Product tools
 
-Tool names match the ones the in-product Respan agent uses (`noun_verb`, such as `log_list` or `prompt_deploy`). Older names (`list_logs`, `get_trace_tree`, `deploy_prompt_version`, ...) still work in the `Respan-Enabled-Tools` header and in `tools/call`; they are translated to the current names (`lib/shared/tool-aliases.ts`), and only current names are listed.
+The platform server exposes eight feature categories: traces, logs, behaviors,
+errors, metrics, monitors, prompts, and workspace. Public docs search is separate.
+Custom behavior definitions belong to Behaviors; notification destinations belong
+to Monitors. Application conversations are inspected through request/trace tools
+rather than a separate conversation product.
 
-### Organizations
+Use live discovery as the schema source of truth:
 
-| Tool | Description |
-|------|-------------|
-| `org_list` | List the organizations your account can act as, and which one is active |
-| `org_switch` | Switch the active organization by name, `organization_id`, or `team_id` |
+```bash
+respan tools list --categories --json
+respan tools list --category behaviors --json
+respan tools call behavior_summary --input '{"scope":"traces"}'
+```
 
-Every other tool reads and writes the **active** organization only. Switching is
-account-wide and persistent — it moves the Respan web app and any other session
-to the same organization, because the backend stores the active organization on
-the user record rather than on the token. Requires an OAuth login; an API key is
-already bound to one organization and cannot switch.
+The [shared tool directory](https://respan.ai/docs/documentation/mcp#tool-categories)
+explains every feature's tools. CLI forwards calls to this server and keeps no
+independent category map or schema snapshot.
 
-### Production
+Feature tools may share an API. Metrics and Errors reuse the chart API with
+separate metric vocabularies; grouped metrics and user usage reuse the ranking
+API; Monitors reuse the workflow API with the resource type fixed to monitors.
+Trace totals and request totals remain distinct. Rates and averages are returned
+as buckets, never summed into misleading totals.
 
-What is happening in your app. Every tool here is read-only and defaults to the last 24 hours.
+Behavior analytics default to whole traces. Use explicit `scope: "spans"` for
+request-level gateway analysis. The backend API still defaults to spans; the
+product tools select traces explicitly. Compatible older tool names remain
+callable, but also use this new trace default unless scope is provided.
 
-| Tool | Description |
-|------|-------------|
-| `log_list` | Find individual requests and spans (compact rows, no message text) |
-| `log_get` | Read one request in full: messages, output, cost, tokens, scores |
-| `trace_list` | Find agent or workflow runs, with per-run totals |
-| `trace_get` | Read one run as a tree of spans |
-| `thread_list` | Find conversations (requests sharing a `thread_identifier`) |
-| `thread_get` | Read one conversation's totals |
-| `dashboard_llm_metrics_summary` | Requests, cost, tokens, latency and error rate for a time range |
-| `dashboard_top_models` | Rank models by requests, cost, tokens, errors or latency |
-| `end_user_rank_by_usage` | Rank your app's end users the same way |
+Monitors check resource type before writing and preserve complete content,
+including stored webhook secrets, when a committed family needs a new draft.
+Secrets are omitted from results. Alert history counts delivered notifications,
+not every execution; an empty history is not evidence of inactivity.
 
-Results leave out Respan-internal fields (org and key IDs, pricing internals, storage keys, raw request copies) and long text is shortened to keep each result small.
+Workspace identity/selection and behavior detection settings require OAuth.
+Behavior settings writes resolve their target from the current session and replace
+only the disabled list. API keys remain project-bound.
 
-### Behaviors and errors
-
-What the platform flags on your traffic. Names, descriptions and arguments come straight from the backend's tool catalog.
-
-| Tool | Description |
-|------|-------------|
-| `pulse_behaviors_summary` | How often each behavior fired, with a positive/negative/neutral rollup |
-| `behavior_list` | The behaviors available to your organization (built-in and custom) |
-| `behavior_timeseries` | Behavior counts over time |
-| `behavior_grouped` | One behavior's count broken down by a log dimension |
-| `behavior_spans_list` | The spans where one behavior fired |
-| `custom_behavior_list` / `custom_behavior_get` | Your custom behaviors |
-| `custom_behavior_suggest` / `custom_behavior_analyze` | Draft custom behaviors and check their wording (saves nothing) |
-| `custom_behavior_create` / `custom_behavior_update` / `custom_behavior_delete` | Manage custom behaviors |
-| `pulse_error_groups_list` / `pulse_error_group_get` | Error issues, grouped by fingerprint, and one issue's recent occurrences |
-| `pulse_incidents_list` | Detected windows of elevated error rate |
-
-### Prompts
-
-| Tool | Description |
-|------|-------------|
-| `prompt_list` | List all prompts in your organization |
-| `prompt_get` | Get detailed prompt information |
-| `prompt_create` / `prompt_update` | Create a prompt, or change its name and settings |
-| `prompt_versions_list` | List all versions of a prompt |
-| `prompt_version_get` | Get specific version details |
-| `prompt_draft_init` / `prompt_version_update` | Start a new draft version, or edit one |
-| `prompt_commit` | Commit the current draft as a read-only version |
-| `prompt_deploy` | Make a version live; a current draft is committed first |
-
-### Monitors
-
-| Tool | Description |
-|------|-------------|
-| `monitor_list` / `monitor_get` | Find monitors and inspect one using its family ID |
-| `monitor_create` / `monitor_update` | Create or edit a monitor; editing a committed family forks a complete draft |
-| `monitor_version_list` | Inspect the monitor's versions |
-| `monitor_commit` / `monitor_deploy` / `monitor_undeploy` | Commit a draft, make a version live, or stop delivery |
-| `monitor_delete` | Delete a monitor after matching its current name |
-| `monitor_run_history` / `monitor_runs_time_series` | Read delivered-alert history and bucketed alert counts |
-| `notification_method_list` / `notification_method_get` | Find existing notification destinations for monitor tasks |
-
-Monitor tools reuse the backend's customer schemas and pin the resource type to
-monitors. Mutations check the resource type before writing. An update that needs
-a new draft copies all existing content, including stored webhook secrets, then
-applies the edit; secrets are omitted from tool responses. History counts alerts,
-not all executions. An empty alert history does not mean the monitor never ran.
-
-The public surface no longer registers `automation_*`, `evaluator_*`, `grader_*`,
-generic `workflow_*`, `dataset_*`, `experiment_*`, or `export_workflow_create`. Their backend resources remain
-available internally. Clients using those removed MCP names must migrate;
-generic workflow calls cannot safely be aliased to monitors because their IDs
-may identify another resource type. Datasets and experiments are also absent from this public product surface.
-
-------|-------------|
-| `workflow_list` | List automations, monitors, scheduled exports, and evaluator pipelines |
-| `workflow_filter` | Filter workflows by type or other fields |
-| `workflow_get` | Retrieve a workflow and its task definitions |
-| `automation_create` | Create an event-driven automation; adds the required dashboard sampling gate |
-| `monitor_create` | Create a monitor from aggregation/condition and delivery tasks |
-| `export_workflow_create` | Create a scheduled export from cron and export-specific options |
-| `workflow_create` | Advanced low-level workflow creation escape hatch |
-| `workflow_update` | Update an editable workflow draft |
-| `workflow_delete` | Delete a workflow family and all versions |
-| `workflow_versions_list` | List versions in a workflow family |
-| `workflow_version_get` | Retrieve a specific workflow version |
-| `workflow_commit` | Commit the current draft |
-| `workflow_deploy` | Deploy a committed workflow version |
-| `workflow_undeploy` | Stop a deployed workflow |
-| `workflow_validate` | Validate workflow tasks against sample data |
-
-The backend route is shared, but the MCP creation functions are intentionally separate. Automations are event-driven task pipelines and receive the dashboard-compatible `auto-sampling` gate; monitors accept aggregation, condition, and delivery tasks and require a notification or webhook; exports accept a UTC five-field cron plus export-specific filters, fields, inline-result behavior, and sampling.
+The public surface does not register automation, evaluator, grader, dataset,
+experiment, generic workflow or export-workflow tools. Their backend capabilities
+remain available internally and may be reused by a supported feature. Generic
+workflow IDs cannot safely be aliased to monitor IDs.
 
 ---
 
@@ -249,12 +186,12 @@ respan-mcp/
 │   ├── production/
 │   │   ├── logs.ts           # log_list, log_get
 │   │   ├── traces.ts         # trace_list, trace_get
-│   │   ├── threads.ts        # thread_list, thread_get
-│   │   └── metrics.ts        # dashboard_llm_metrics_summary, dashboard_top_models, end_user_rank_by_usage
+│   │   ├── threads.ts        # legacy module, not publicly registered
+│   │   └── metrics.ts        # metric summaries, grouped rankings, user usage
 │   ├── pulses/
 │   │   └── index.ts          # behaviors, error issues, incidents
 │   ├── account/
-│   │   └── organizations.ts  # org_list, org_switch
+│   │   └── organizations.ts  # workspace identity and selection
 │   └── develop/
 │       └── prompts.ts        # prompt_list, prompt_get, versions
 ├── vercel.json               # Vercel config (rewrites, function timeout)
@@ -267,11 +204,11 @@ respan-mcp/
 - **Two entry points:** `api/mcp.ts` (HTTP via Vercel) and `lib/index.ts` (stdio for local use)
 - **Shared core:** Both entry points create an `AuthConfig` and pass it to the same tool registration functions via closures - no global mutable state
 - **Tool modules:** Organized by domain (`production/` for runtime data, `develop/` for prompt management)
-- **API client:** `lib/shared/client.ts` handles all upstream API calls with 30s timeout, path validation, and auth
+- **API client:** `lib/shared/client.ts` handles upstream requests and authentication against the configured backend
 
 ### Syncing with the backend
 
-`lib/generated/backend-tools.json` is a snapshot of the customer tool catalog the in-product agent uses. Tools registered with `registerBackendTool` take their name, description and arguments from it, and their handlers mirror the backend executor of the same name. To refresh it from a backend checkout:
+`lib/generated/backend-tools.json` is a snapshot of the customer tool catalog the in-product agent uses. The snapshot supplies backend contracts and wire arguments. Product tools can adapt names, descriptions and defaults while reusing those APIs; `product-vocabulary.ts` publishes the product names, and `tool-aliases.ts` preserves compatible calls. Public tool registration is an explicit feature selection, not an export of every backend resource. To refresh it from a backend checkout:
 
 ```bash
 cd ../respan-backend
@@ -427,25 +364,15 @@ Full documentation at [docs.respan.ai/documentation/resources/mcp](https://docs.
 
 MIT
 
-### Shared CLI/MCP tool directory
+### Shared CLI/MCP discovery
 
-Every registered tool carries `_meta["respan/category"]` in `tools/list`.
-The CLI consumes this metadata directly; it does not maintain a second category
-map or a copy of the tool schemas:
+Each registered tool carries `_meta["respan/category"]`. Product names are listed
+by discovery; compatible backend/older names are rewritten at the transport
+boundary. Enabled-tool settings accept either vocabulary. Backend names, wire
+parameters and APIs can be reused by multiple features without duplicating the
+CLI catalog.
 
-```bash
-respan tools list --categories --json
-respan tools list --category behaviors --json
-```
-
-Core categories: workspace, traces, logs, conversations, metrics, behaviors,
-errors, monitors, and prompts. Custom behavior definitions
-are part of behaviors; notification destinations are part of monitors. Public docs
-search is a separate docs category. New tools must resolve to a
-category; discovery tests exercise the actual registered server.
-
-For tracing investigations, use behavior analytics with `scope: "traces"` and
-read the returned `trace_unique_id` with `trace_get`. These are whole-trace
-verdicts; span-level behavior aggregation is a separate fallback source on
-trace details. `scope: "spans"` remains the compatibility default. Summary,
-timeseries, grouping, and drill-down share that scope contract.
+Behavior drill-down returns `trace_unique_id` for whole-trace verdicts; inspect
+that run using `trace_get`. Trace details distinguish whole-trace verdicts from
+span-aggregation fallback. Response fields named `*_spans` count traces when the
+selected scope is traces.

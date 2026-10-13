@@ -4,10 +4,11 @@
 // Contracts come from the backend catalog; each handler mirrors the backend
 // executor of the same name (admin/mcp_server/behavior_tools.py and
 // pulse_tools.py in respan-backend).
+import { registerBehaviorSettings } from "./settings.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AuthenticatedClient } from "../shared/client.js";
 import { rawFetch } from "../shared/client.js";
-import { passedArgs, pickArgs, registerBackendTool } from "../shared/backend-tool.js";
+import { BACKEND_TOOLS, passedArgs, pickArgs, registerBackendTool } from "../shared/backend-tool.js";
 import { READ_ONLY_WORKSPACE_TOOL } from "../shared/tool-result.js";
 import { ADDITIVE_WRITE_TOOL, DESTRUCTIVE_TOOL } from "../shared/tool-policy.js";
 
@@ -41,10 +42,15 @@ function customBehaviorPath(args: Record<string, any>): string {
 }
 
 export function registerPulseTools(server: McpServer, client: AuthenticatedClient | null) {
+  registerBehaviorSettings(server, client);
   // --- Behaviors ---
   for (const [name, route] of Object.entries(BEHAVIOR_ANALYTICS)) {
+    const source = BACKEND_TOOLS.get(name)!;
     registerBackendTool(server, client, name, READ_ONLY_WORKSPACE_TOOL, (c, args) =>
-      rawFetch(c, route.path, { body: pickArgs(args, route.bodyKeys) }),
+      rawFetch(c, route.path, { body: pickArgs({ ...args, scope: args.scope ?? "traces" }, route.bodyKeys) }),
+      { ...source, description: source.description.replace(/the default scope=spans/g, "scope=spans") + " This product tool defaults to scope=traces; specify scope=spans for gateway requests.",
+        inputSchema: { ...source.inputSchema, properties: { ...source.inputSchema.properties, scope: { ...source.inputSchema.properties?.scope, description: "Count whole traces (default) or individual spans." } } },
+      },
     );
   }
 

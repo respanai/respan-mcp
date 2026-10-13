@@ -28,14 +28,17 @@ describe('shared tool discovery', () => {
     const byName = new Map(tools.map((t) => [t.name, t]));
     for (const [name, category] of Object.entries({
       trace_get: 'traces', log_get: 'logs', behavior_grouped: 'behaviors',
-      custom_behavior_create: 'behaviors', pulse_error_group_get: 'errors',
-      monitor_create: 'monitors', monitor_update: 'monitors', notification_method_list: 'monitors',
+      custom_behavior_create: 'behaviors', error_group_get: 'errors',
+      monitor_create: 'monitors', monitor_update: 'monitors', notification_destination_list: 'monitors',
     })) expect(byName.get(name)?._meta?.[TOOL_CATEGORY_META_KEY]).toBe(category);
   });
   it('excludes retired resource families from the public product surface', async () => {
     const names = (await list(createServer(null))).map(t => t.name);
     expect(names.some(name => /^(automation|evaluator|grader|workflow|export_workflow|dataset|experiment)_/.test(name))).toBe(false);
     expect(TOOL_CATEGORIES).not.toContain('custom-behaviors');
+    expect(TOOL_CATEGORIES).not.toContain('conversations');
+    expect(names).not.toContain('thread_list');
+    expect(names).not.toContain('thread_get');
   });
   it('retains server enabled-tool filtering', async () => {
     const tools = await list(createServer(null, new Set(['trace_get', 'monitor_create'])));

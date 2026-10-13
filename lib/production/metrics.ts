@@ -29,6 +29,9 @@ export const RANK_METRICS = [
 /** Columns kept per ranked row; the endpoint returns ~30 per row. */
 const RANKED_ROW_FIELDS = [
   "model",
+  "provider_id",
+  "prompt_id",
+  "deployment_id",
   "customer_identifier",
   "name",
   "email",
@@ -156,21 +159,22 @@ To compare periods, call it once per period with windows of equal length. Defaul
   server.registerTool(
     "dashboard_top_models",
     {
-      title: "Top models",
-      description: `Rank the models your app called in a time range by requests, cost, tokens, errors or latency. Each row has the model with its request count, total cost (USD), tokens, average latency and error count. Use it for "which model costs the most" or "which model fails most".
+      title: "Grouped metrics",
+      description: `Compare supported groups by requests, cost, tokens, errors or latency. Select model, provider, end user, prompt or deployment as group_by. Defaults to model for compatibility.
 
 Defaults to the last 24 hours, ranked by number of requests.`,
       inputSchema: {
         ...timeWindowShape,
         ...environmentShape,
         provider_id: providerIdSchema,
+        group_by: z.enum(["model", "provider_id", "customer_identifier", "prompt_id", "deployment_id"]).optional().describe("Grouping dimension; default model."),
         ...rankShape,
       },
       annotations: READ_ONLY_WORKSPACE_TOOL,
     },
     async (args) => {
       const c = requireClient(client);
-      return rankBy(c, "model", args, dashboardFilters({
+      return rankBy(c, args.group_by ?? "model", args, dashboardFilters({
         provider_id: { operator: "", value: args.provider_id },
       }));
     },

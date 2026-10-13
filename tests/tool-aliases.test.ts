@@ -98,6 +98,18 @@ describe('tool aliases', () => {
     expect(names).toEqual(['behavior_list', 'trace_get', 'trace_list']);
   });
 
+  it('discovers and calls a product-renamed tool through its compatible backend name', async () => {
+    const handler = createMcpHandler('https://api.respan.ai', '/.well-known/oauth-protected-resource', 'platform');
+    const listed = new MockResponse();
+    await handler(rpcRequest('tools/list', {}, { 'respan-enabled-tools': 'dashboard_llm_metrics_summary,workspace_current' }), listed as any);
+    expect(rpcResult(listed).result.tools.map((t: any) => t.name).sort()).toEqual(['metrics_summary', 'workspace_current']);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ number_of_requests: 2 }), { status: 200 }));
+    const called = new MockResponse();
+    await handler(rpcRequest('tools/call', { name: 'dashboard_llm_metrics_summary', arguments: {} }, { 'respan-enabled-tools': 'metrics_summary' }), called as any);
+    expect(rpcResult(called).result.isError).toBeFalsy();
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/dashboard/llm-metrics/summary/');
+  });
+
   it('runs a tools/call that uses an old name', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(

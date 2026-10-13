@@ -90,7 +90,7 @@ Defaults to the last 24 hours. The result has no total count: for totals over a 
         model: z.string().optional().describe("Only models whose name contains this text, e.g. 'gpt-4o'."),
         status: z.enum(LOG_STATUSES).optional().describe("Only successful or only failed requests."),
         customer_identifier: z.string().optional().describe("Only requests from this end user of your app."),
-        thread_identifier: z.string().optional().describe("Only requests in this conversation (from thread_list)."),
+        thread_identifier: z.string().optional().describe("Only requests with this application conversation identifier."),
         prompt_name: z.string().optional().describe("Only requests made with this saved prompt."),
         filters: z
           .array(filterConditionSchema(

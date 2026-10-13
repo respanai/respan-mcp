@@ -1,9 +1,10 @@
 // lib/shared/backend-tool.ts
 //
-// Tools whose name, description and input schema come verbatim from the
+// Tools whose base description and input schema come from the
 // backend's customer tool catalog (lib/generated/backend-tools.json, exported
 // by scripts/export_backend_tools.py), so this server and the in-product agent
-// describe them identically. Only the HTTP call is written here, mirroring the
+// share wire contracts. Product tools may adapt names, descriptions and defaults.
+// The HTTP call is written here, mirroring the
 // backend executor of the same name.
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

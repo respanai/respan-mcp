@@ -1,22 +1,26 @@
+import { resolveToolName } from './tool-aliases.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 /** Shared discovery metadata; names and schemas remain those of registered tools. */
 export const TOOL_CATEGORY_META_KEY = 'respan/category';
 
 export const TOOL_CATEGORIES = [
-  'workspace', 'traces', 'logs', 'conversations', 'metrics', 'behaviors',
+  'workspace', 'traces', 'logs', 'metrics', 'behaviors',
   'errors', 'monitors', 'prompts', 'docs',
 ] as const;
 export type ToolCategory = typeof TOOL_CATEGORIES[number];
 
 export function toolCategory(name: string): ToolCategory {
+  name = resolveToolName(name);
   if (name.startsWith('custom_behavior_')) return 'behaviors';
   if (name.startsWith('behavior_') || name === 'pulse_behaviors_summary') return 'behaviors';
   if (name.startsWith('pulse_error_') || name === 'pulse_incidents_list') return 'errors';
   if (name.startsWith('dashboard_') || name.startsWith('end_user_')) return 'metrics';
   const prefixes: Record<string, ToolCategory> = {
-    org: 'workspace', trace: 'traces', log: 'logs', thread: 'conversations',
+    org: 'workspace', trace: 'traces', log: 'logs',
     monitor: 'monitors', notification: 'monitors', prompt: 'prompts',
+    behavior: 'behaviors', error: 'errors', incident: 'errors', metrics: 'metrics',
+    user: 'metrics', workspace: 'workspace',
     docs: 'docs',
   };
   const category = prefixes[name.split('_')[0]];

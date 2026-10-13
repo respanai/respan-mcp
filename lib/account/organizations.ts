@@ -1,4 +1,6 @@
 // lib/account/organizations.ts
+import { currentOrganization } from "../pulses/settings.js";
+import { READ_ONLY_WORKSPACE_TOOL } from "../shared/tool-result.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { AuthenticatedClient } from "../shared/client.js";
@@ -144,6 +146,14 @@ export function registerOrganizationTools(
   server: McpServer,
   client: AuthenticatedClient | null,
 ) {
+  server.registerTool("workspace_current", {
+    title: "Current workspace",
+    description: "Read the organization currently selected in your OAuth session. API keys are project-bound and cannot access this OAuth-only identity endpoint.",
+    inputSchema: {}, annotations: READ_ONLY_WORKSPACE_TOOL,
+  }, async () => {
+    const org = await currentOrganization(requireClient(client));
+    return asText({ organization_id: org.unique_organization_id ?? org.id, name: org.name });
+  });
   // --- List Organizations ---
   server.tool(
     "org_list",

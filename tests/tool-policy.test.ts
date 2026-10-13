@@ -1,3 +1,4 @@
+import { resolveToolName } from '../lib/shared/tool-aliases.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -44,7 +45,7 @@ describe('tool policy', () => {
       ...(await listTools(docsServer())).map((tool) => tool.name),
     ]);
     for (const name of Object.keys(TOOL_ANNOTATIONS)) {
-      expect(names.has(name), `${name} is in TOOL_ANNOTATIONS but not registered`).toBe(true);
+      expect(names.has(resolveToolName(name)), `${name} is in TOOL_ANNOTATIONS but not registered`).toBe(true);
     }
   });
 
@@ -63,7 +64,7 @@ describe('tool policy', () => {
       expect(tools.get(name)?.annotations, name).toMatchObject({ readOnlyHint: false, destructiveHint: true });
     }
     for (const name of [
-      'trace_list', 'prompt_get', 'behavior_list', 'pulse_error_groups_list',
+      'trace_list', 'prompt_get', 'behavior_list', 'error_group_list',
     ]) {
       expect(tools.get(name)?.annotations, name).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     }

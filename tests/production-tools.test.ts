@@ -1,3 +1,4 @@
+import { registerThreadTools } from "../lib/production/threads.js";
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerProductionTools } from '../lib/production/index.js';
@@ -13,14 +14,14 @@ interface RegisteredTool {
   handler: ToolHandler;
 }
 
-function captureTools(client: AuthenticatedClient | null): Record<string, RegisteredTool> {
+function captureTools(client: AuthenticatedClient | null, register = registerProductionTools): Record<string, RegisteredTool> {
   const tools: Record<string, RegisteredTool> = {};
   const server = {
     registerTool(name: string, config: RegisteredTool['config'], handler: ToolHandler) {
       tools[name] = { config, handler };
     },
   } as unknown as McpServer;
-  registerProductionTools(server, client);
+  register(server, client);
   return tools;
 }
 
@@ -66,11 +67,13 @@ describe('production tool surface', () => {
       'end_user_rank_by_usage',
       'log_get',
       'log_list',
-      'thread_get',
-      'thread_list',
+      'error_timeseries',
+      'log_summary',
+      'metrics_timeseries',
+      'trace_summary',
       'trace_get',
       'trace_list',
-    ]);
+    ].sort());
   });
 
   it('marks every tool read-only with a title and a short description', () => {
@@ -297,7 +300,7 @@ describe('trace_get', () => {
 describe('thread tools', () => {
   it('lists threads with the min_requests shortcut', async () => {
     const { client, call } = fakeClient();
-    const { thread_list } = captureTools(client);
+    const { thread_list } = captureTools(client, registerThreadTools);
     await thread_list.handler({ min_requests: 10, sort_by: '-total_cost' });
     const { path, query, body } = call();
     expect(path).toBe('/api/log_threads/');
@@ -316,7 +319,7 @@ describe('thread tools', () => {
         output: 'o'.repeat(1_000),
       }],
     });
-    const { thread_list } = captureTools(client);
+    const { thread_list } = captureTools(client, registerThreadTools);
     const [row] = parsed(await thread_list.handler({})).results;
     expect(Object.keys(row).sort()).toEqual(['cost', 'log_count', 'output', 'thread_identifier']);
     expect(row.output.length).toBeLessThan(300);
@@ -324,7 +327,7 @@ describe('thread tools', () => {
 
   it('reads one thread by its escaped identifier', async () => {
     const { client, call } = fakeClient({ thread_identifier: 'a/b', number_of_requests: 3 });
-    const { thread_get } = captureTools(client);
+    const { thread_get } = captureTools(client, registerThreadTools);
     await thread_get.handler({ thread_identifier: 'a/b' });
     expect(call()).toMatchObject({ path: '/api/log_thread/a%2Fb/', method: 'GET' });
   });

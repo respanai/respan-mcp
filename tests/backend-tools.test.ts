@@ -47,11 +47,14 @@ function fakeClient(responses: Array<{ status?: number; body: unknown }> = [{ bo
 }
 
 describe('backend-catalog tools', () => {
-  it('use the backend description verbatim', () => {
+  it('reuse backend contracts with product-specific analytics defaults', () => {
     const tools = capture(registerPulseTools, null);
-    expect(Object.keys(tools).length).toBe(15);
+    expect(Object.keys(tools).length).toBe(17);
     for (const [name, tool] of Object.entries(tools)) {
-      expect(tool.config.description).toBe(BACKEND_TOOLS.get(name)!.description);
+      if (!name.startsWith('behavior_settings_')) {
+        const source = BACKEND_TOOLS.get(name)!.description;
+        expect(tool.config.description).toContain(source.split('.')[0]);
+      }
     }
   });
 
@@ -87,7 +90,7 @@ describe('behavior tools', () => {
       method: 'POST',
       path: '/api/pulses/behaviors/grouped/',
       query: {},
-      body: { start_time: '2026-10-01T00:00:00Z', behavior: 'refusal', group_by: 'model', limit: 5 },
+      body: { start_time: '2026-10-01T00:00:00Z', scope: 'traces', behavior: 'refusal', group_by: 'model', limit: 5 },
     });
   });
 
@@ -173,13 +176,13 @@ describe('prompt_deploy', () => {
 
 
 describe('behavior summary scope', () => {
-  it('forwards trace scope unchanged and keeps a missing scope optional', async () => {
+  it('forwards explicit scope unchanged and defaults missing scope to traces', async () => {
     const { client, call } = fakeClient([{ body: { scope: 'traces', total_classified_spans: 2 } }]);
     const summary = capture(registerPulseTools, client).pulse_behaviors_summary;
     await summary.handler({ scope: 'traces', start_time: '2026-10-01T00:00:00Z' });
     expect(call().body).toEqual({ scope: 'traces', start_time: '2026-10-01T00:00:00Z' });
     await summary.handler({});
-    expect(call(1).body).toEqual({});
+    expect(call(1).body).toEqual({ scope: 'traces' });
     expect(summary.config.inputSchema.scope.safeParse('traces').success).toBe(true);
     expect(summary.config.inputSchema.scope.safeParse('invalid').success).toBe(false);
   });
