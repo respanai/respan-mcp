@@ -405,3 +405,26 @@ Full documentation at [docs.respan.ai/documentation/resources/mcp](https://docs.
 ## License
 
 MIT
+
+### Shared CLI/MCP tool directory
+
+Every registered tool carries `_meta["respan/category"]` in `tools/list`.
+The CLI consumes this metadata directly; it does not maintain a second category
+map or a copy of the tool schemas:
+
+```bash
+respan tools list --categories --json
+respan tools list --category behaviors --json
+```
+
+Core categories: workspace, traces, logs, conversations, metrics, behaviors,
+errors, monitors, prompts, and custom-behaviors. Other existing capabilities
+remain distinct: automations, exports, workflow lifecycle, datasets, graders,
+evaluators, experiments, and public docs search. New tools must resolve to a
+category; discovery tests exercise the actual registered server.
+
+For tracing investigations, use behavior analytics with `scope: "traces"` and
+read the returned `trace_unique_id` with `trace_get`. These are whole-trace
+verdicts; span-level behavior aggregation is a separate fallback source on
+trace details. `scope: "spans"` remains the compatibility default. Summary,
+timeseries, grouping, and drill-down share that scope contract.

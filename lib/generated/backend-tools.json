@@ -803,7 +803,7 @@
   },
   {
    "name": "behavior_grouped",
-   "description": "One behavior's fired count broken down by a log dimension.",
+   "description": "One behavior's fired count broken down by a log dimension. scope=traces counts whole-trace verdicts grouped by root-span attributes; the default scope=spans counts per-span verdicts.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -871,7 +871,7 @@
   },
   {
    "name": "behavior_spans_list",
-   "description": "The spans where one behavior fired, newest first (paginated). Feed unique_id to log_get.",
+   "description": "The records where one behavior fired, newest first (paginated). scope=traces selects whole-trace verdicts and returns root-span rows; feed trace_unique_id to trace_get for primary analysis. The default scope=spans selects per-span verdicts; feed unique_id to log_get.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -918,7 +918,7 @@
   },
   {
    "name": "behavior_timeseries",
-   "description": "Behavior fired counts over time, per behavior or by polarity.",
+   "description": "Behavior fired counts over time, per behavior or by polarity. scope=traces counts whole-trace verdicts; the default scope=spans counts per-span verdicts.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -5143,7 +5143,7 @@
   },
   {
    "name": "pulse_behaviors_summary",
-   "description": "Per-behavior fired counts with a positive/negative/neutral polarity rollup and net sentiment.",
+   "description": "Per-behavior fired counts with a positive/negative/neutral polarity rollup and net sentiment. scope=traces counts whole-trace verdicts; the default scope=spans counts per-span verdicts. Response count fields retain their *_spans names for both scopes.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -5162,6 +5162,14 @@
        "test"
       ],
       "description": "Environment filter (omit for all environments)"
+     },
+     "scope": {
+      "type": "string",
+      "enum": [
+       "spans",
+       "traces"
+      ],
+      "description": "Count spans (default) or traces"
      }
     },
     "required": []

@@ -1,3 +1,4 @@
+import { applyToolCatalog } from './tool-catalog.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -33,6 +34,7 @@ export function createServer(
     version: '1.0.0',
   });
   applyToolPolicy(server);
+  applyToolCatalog(server);
 
   if (enabledTools?.size) {
     const originalTool = server.tool.bind(server);

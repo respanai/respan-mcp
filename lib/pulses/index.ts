@@ -18,7 +18,7 @@ const DEFINITION_KEYS = ["name", "description", "polarity"] as const;
 
 /** POST-for-filtering analytics reads: path and the body keys they honor. */
 const BEHAVIOR_ANALYTICS: Record<string, { path: string; bodyKeys: readonly string[] }> = {
-  pulse_behaviors_summary: { path: BEHAVIORS_PATH, bodyKeys: TIME_WINDOW_KEYS },
+  pulse_behaviors_summary: { path: BEHAVIORS_PATH, bodyKeys: [...TIME_WINDOW_KEYS, "scope"] },
   behavior_timeseries: {
     path: `${BEHAVIORS_PATH}timeseries/`,
     bodyKeys: [...TIME_WINDOW_KEYS, "scope", "granularity", "group_by", "behaviors"],

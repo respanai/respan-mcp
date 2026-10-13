@@ -170,3 +170,17 @@ describe('prompt_deploy', () => {
     await expect(tools.prompt_deploy.handler({ prompt_id: 'p1', version: 4 })).rejects.toThrow(/not the current draft/);
   });
 });
+
+
+describe('behavior summary scope', () => {
+  it('forwards trace scope unchanged and keeps a missing scope optional', async () => {
+    const { client, call } = fakeClient([{ body: { scope: 'traces', total_classified_spans: 2 } }]);
+    const summary = capture(registerPulseTools, client).pulse_behaviors_summary;
+    await summary.handler({ scope: 'traces', start_time: '2026-10-01T00:00:00Z' });
+    expect(call().body).toEqual({ scope: 'traces', start_time: '2026-10-01T00:00:00Z' });
+    await summary.handler({});
+    expect(call(1).body).toEqual({});
+    expect(summary.config.inputSchema.scope.safeParse('traces').success).toBe(true);
+    expect(summary.config.inputSchema.scope.safeParse('invalid').success).toBe(false);
+  });
+});

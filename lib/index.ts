@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { applyToolCatalog } from './shared/tool-catalog.js';
 // Entry point for Respan MCP Server (stdio mode)
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -29,6 +30,7 @@ async function main() {
     version: "1.0.0",
   });
   applyToolPolicy(server);
+  applyToolCatalog(server);
 
   registerProductionTools(server, client);
   registerPulseTools(server, client);
