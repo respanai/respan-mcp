@@ -36,7 +36,7 @@ _exceptions = types.ModuleType("utils.exceptions")
 _exceptions.extract_http_error_detail = lambda *args, **kwargs: ""
 sys.modules["utils.exceptions"] = _exceptions
 
-from admin.mcp_server import core  # noqa: E402
+from admin.mcp_server import TOOLS as ADMIN_TOOLS, core  # noqa: E402
 from utils.mcp.tool_bridge import (  # noqa: E402
     AGENT_READ_ONLY_TOOLS,
     AGENT_SAFE_DOMAINS,
@@ -59,6 +59,47 @@ INTERNAL_PATTERNS = (
     re.compile(r"superadmin", re.IGNORECASE),
     re.compile(r"\bstaff[- _]only\b", re.IGNORECASE),
 )
+# Admin tools the agent bridge withholds whose views still scope a customer to
+# their own project or workspace (membership and role checked server-side).
+# name -> read-only.
+ADMIN_CUSTOMER_TOOLS = {
+    "workspace_get": True,
+    "workspace_list": True,
+    "workspace_member_list": True,
+    "workspace_project_list": True,
+    "workspace_billing_get": True,
+    "workspace_billing_breakdown_get": True,
+    "workspace_credit_transaction_list": True,
+    "workspace_limit_get": True,
+    "workspace_subscription_list": True,
+    "workspace_member_invite": False,
+    "workspace_member_remove": False,
+    "workspace_project_access_grant": False,
+    "workspace_project_access_update": False,
+    "workspace_project_access_revoke": False,
+    "workspace_update": False,
+    "join_request_list": True,
+    "join_request_approve": False,
+    "join_request_deny": False,
+    "limit_policy_delete": False,
+    "integration_create": False,
+    "integration_update": False,
+    "integration_activate": False,
+    "integration_deactivate": False,
+    "integration_delete": False,
+    "model_create": False,
+    "model_update": False,
+    "model_delete": False,
+    "foundation_model_get": True,
+    "foundation_model_list": True,
+    "behavior_guardrail_settings_update": False,
+    "behavior_verdict_update": False,
+}
+# These name their target project in the request: the admin `org` argument is
+# published under the product term.
+PROJECT_ARGUMENT_TOOLS = ("join_request_list", "join_request_approve", "join_request_deny")
+ADMIN_ONLY_ARGUMENTS = ("profile", "org")
+
 # The agent loads tools on demand through tool_search; no client of this
 # server has it, so instructions to call it cannot be followed here.
 DANGLING_PATTERNS = (re.compile(r"\btool_search\b"),)
@@ -104,6 +145,27 @@ for tool in sorted(tools, key=lambda t: t["function"]["name"]):
             "readOnly": function["name"] in AGENT_READ_ONLY_TOOLS,
         }
     )
+
+for tool in ADMIN_TOOLS:
+    if tool.name not in ADMIN_CUSTOMER_TOOLS:
+        continue
+    schema = json.loads(json.dumps(tool.inputSchema))
+    properties = schema.get("properties", {})
+    if tool.name in PROJECT_ARGUMENT_TOOLS and "org" in properties:
+        properties["project"] = properties.pop("org")
+        schema["required"] = ["project" if key == "org" else key for key in schema.get("required", [])]
+    for key in (ACTIVITY, *ADMIN_ONLY_ARGUMENTS):
+        properties.pop(key, None)
+    schema["required"] = [key for key in schema.get("required", []) if key in properties]
+    exported.append(
+        {
+            "name": tool.name,
+            "description": scrub(tool.description),
+            "inputSchema": scrub_schema(schema),
+            "readOnly": ADMIN_CUSTOMER_TOOLS[tool.name],
+        }
+    )
+exported.sort(key=lambda tool: tool["name"])
 
 blob = json.dumps({"tools": exported}, indent=1, ensure_ascii=False)
 offenders = sorted({m.group(0) for p in INTERNAL_PATTERNS for m in p.finditer(blob)})

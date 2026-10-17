@@ -6,9 +6,8 @@
 // requires readOnlyHint, destructiveHint and openWorldHint on every tool, and
 // ChatGPT asks the user to confirm calls that are not read-only.
 //
-// Tools registered with `registerTool(...)` (lib/production, lib/pulses and the
-// backend-catalog tools) declare their own annotations and pass through
-// untouched.
+// Tools registered with `registerTool(...)` (the backend-catalog tools)
+// declare their own annotations and pass through untouched.
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
@@ -38,23 +37,13 @@ export const DESTRUCTIVE_TOOL: ToolAnnotations = {
 const DESTRUCTIVE = DESTRUCTIVE_TOOL;
 
 export const TOOL_ANNOTATIONS: Readonly<Record<string, ToolAnnotations>> = {
-  // Prompts (prompt_commit and prompt_deploy carry their own)
-  prompt_list: READ,
-  prompt_get: READ,
-  prompt_versions_list: READ,
-  prompt_version_get: READ,
-  prompt_create: WRITE,
-  prompt_draft_init: WRITE,
-  prompt_update: DESTRUCTIVE,
-  prompt_version_update: DESTRUCTIVE,
-
   // Account
-  org_list: READ,
-  org_switch: WRITE,
+  project_list: READ,
+  project_switch: WRITE,
 
   // Docs
   docs_search: READ_PUBLIC,
-};
+}
 
 const unannotatedToolNames = new Set<string>();
 
@@ -86,17 +75,13 @@ const hiddenWriteTools = new WeakMap<McpServer, Set<string>>();
  * annotations do not say readOnlyHint: true, and records its name. A tool
  * with readOnlyHint false or no annotation at all counts as a write, so a new
  * tool stays hidden from read-only sessions until it is marked read-only on
- * purpose. Call it after every tool is registered, so it sees each tool's
- * product name (after applyProductVocabulary) and its final annotations
- * (after applyToolPolicy), whichever API registered it.
+ * purpose. Call it after every tool is registered, so it sees each tool's final
+ * annotations (after applyToolPolicy), whichever API registered it.
  */
 export function removeWriteTools(server: McpServer): void {
   const hidden = new Set<string>();
   hiddenWriteTools.set(server, hidden);
   // The SDK keeps registered tools by name and has no public way to list them.
-  // The entry is deleted by key, not with tool.remove(): remove() deletes the
-  // name the tool was first registered under, so a tool renamed by
-  // applyProductVocabulary (org_switch -> workspace_switch) would stay listed.
   const registered = (server as unknown as {
     _registeredTools: Record<string, { annotations?: ToolAnnotations }>;
   })._registeredTools;

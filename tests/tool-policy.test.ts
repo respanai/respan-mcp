@@ -9,6 +9,9 @@ import { registerDocTools } from '../lib/docs/tools.js';
 import { applyToolPolicy, TOOL_ANNOTATIONS, unannotatedTools } from '../lib/shared/tool-policy.js';
 import handleChallenge from '../api/well-known/openai-apps-challenge.js';
 
+// These tests cover the whole tool surface, not only the tools listed by default.
+process.env.RESPAN_MCP_LIST_ALL = '1';
+
 async function listTools(server: McpServer): Promise<Tool[]> {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);

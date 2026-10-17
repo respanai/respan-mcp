@@ -170,7 +170,7 @@ describe('MCP authentication boundary', () => {
     const response = new MockResponse();
     await handler(request(directLoginAccess, 'tools/call', {
       name: 'log_list',
-      arguments: { page_size: 1, page: 1 },
+      arguments: { page_size: 1, page: 1, start_time: '2026-10-01T00:00:00Z', end_time: '2026-10-02T00:00:00Z' },
     }), response as any);
 
     expect(response.statusCode).toBe(200);
@@ -198,13 +198,13 @@ describe('MCP authentication boundary', () => {
     const response = new MockResponse();
     await handler(request('sk-respan-realistic-api-key', 'tools/call', {
       name: 'log_list',
-      arguments: { page_size: 1, page: 1 },
+      arguments: { page_size: 1, page: 1, start_time: '2026-10-01T00:00:00Z', end_time: '2026-10-02T00:00:00Z' },
     }), response as any);
 
     expect(response.statusCode).toBe(200);
     expect(store.operations).toBe(0);
     expect(String(fetchMock.mock.calls[0][0])).toMatch(
-      /^http:\/\/127\.0\.0\.1:8000\/api\/request-logs\/list\//,
+      /^http:\/\/127\.0\.0\.1:8000\/clickhouse\/request-logs\//,
     );
     expect(String(fetchMock.mock.calls[0][0])).not.toContain('/api/api/');
   });
@@ -224,7 +224,7 @@ describe('MCP authentication boundary', () => {
     );
     const maliciousRequest = request('unused', 'tools/call', {
       name: 'log_list',
-      arguments: { page_size: 1, page: 1 },
+      arguments: { page_size: 1, page: 1, start_time: '2026-10-01T00:00:00Z', end_time: '2026-10-02T00:00:00Z' },
     });
     delete maliciousRequest.headers.authorization;
     maliciousRequest.headers['respan-api-base-url'] = 'https://attacker.example/api';
@@ -302,7 +302,7 @@ describe('MCP authentication boundary', () => {
     const response = new MockResponse();
     await handler(request(pair.access_token, 'tools/call', {
       name: 'log_list',
-      arguments: { page_size: 1, page: 1 },
+      arguments: { page_size: 1, page: 1, start_time: '2026-10-01T00:00:00Z', end_time: '2026-10-02T00:00:00Z' },
     }), response as any);
     expect(response.statusCode).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -329,13 +329,13 @@ describe('MCP authentication boundary', () => {
     const enterpriseResponse = new MockResponse();
     await enterpriseHandler(request(pair.access_token, 'tools/call', {
       name: 'log_list',
-      arguments: { page_size: 1, page: 1 },
+      arguments: { page_size: 1, page: 1, start_time: '2026-10-01T00:00:00Z', end_time: '2026-10-02T00:00:00Z' },
     }), enterpriseResponse as any);
 
     expect(enterpriseResponse.statusCode).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0][0])).toMatch(
-      /^https:\/\/endpoint\.respan\.ai\/api\/request-logs\/list\//,
+      /^https:\/\/endpoint\.respan\.ai\/clickhouse\/request-logs\//,
     );
     const outboundHeaders = new Headers(fetchMock.mock.calls[0][1]?.headers);
     expect(outboundHeaders.get('authorization')).toMatch(/^Bearer eyJ/);
@@ -368,7 +368,7 @@ describe('MCP authentication boundary', () => {
     const response = new MockResponse();
     await handler(request(pair.access_token, 'tools/call', {
       name: 'log_list',
-      arguments: { page_size: 1, page: 1 },
+      arguments: { page_size: 1, page: 1, start_time: '2026-10-01T00:00:00Z', end_time: '2026-10-02T00:00:00Z' },
     }), response as any);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(response.statusCode).toBe(401);

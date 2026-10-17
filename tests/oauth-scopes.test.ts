@@ -20,6 +20,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import authorizationServerMetadata from '../api/well-known/oauth-authorization-server.js';
 import protectedResourceMetadata from '../api/well-known/oauth-protected-resource.js';
 
+import { TOOL_RUN_NAME } from '../lib/shared/tool-index.js';
+
+// These tests cover the whole tool surface, not only the tools listed by default.
+process.env.RESPAN_MCP_LIST_ALL = '1';
+
 const SECRET = 'scope-test-secret-that-is-at-least-thirty-two-chars';
 const VERIFIER = 'v'.repeat(64);
 const CHALLENGE = createHash('sha256').update(VERIFIER).digest('base64url');
@@ -357,12 +362,19 @@ describe('the read-only gate covers the whole tool surface', () => {
    */
   function registeredToolNames(): string[] {
     const server = createServer(null) as unknown as { _registeredTools: Record<string, unknown> };
-    return Object.keys(server._registeredTools);
+    return Object.keys(server._registeredTools).filter((name) => name !== TOOL_RUN_NAME);
   }
 
-  /** Every tool on the full surface, split by its own readOnlyHint (false or missing = write). */
+  /** The loops below call the handler once per write tool; CI runners are a few times slower than a laptop. */
+  const SURFACE_LOOP_TIMEOUT_MS = 30_000;
+
+  /**
+   * Every tool on the full surface, split by its own readOnlyHint (false or
+   * missing = write). tool_run takes its hint from the session, so it is
+   * checked on its own.
+   */
   async function surface() {
-    const all = await listTools(API_KEY);
+    const all = (await listTools(API_KEY)).filter((tool) => tool.name !== TOOL_RUN_NAME);
     return {
       all,
       writes: all.filter((tool) => tool.annotations?.readOnlyHint !== true).map((tool) => tool.name),
@@ -375,12 +387,12 @@ describe('the read-only gate covers the whole tool surface', () => {
     expect(all.map((tool) => tool.name).sort()).toEqual(registeredToolNames().sort());
     for (const name of [
       'monitor_create', 'monitor_update', 'monitor_delete', 'monitor_commit', 'monitor_deploy',
-      'monitor_undeploy', 'behavior_settings_update', 'workspace_switch', 'prompt_create',
-      'prompt_update', 'prompt_draft_init', 'prompt_draft_update', 'prompt_commit', 'prompt_deploy',
+      'monitor_undeploy', 'behavior_disabled_set', 'project_switch', 'prompt_create',
+      'prompt_update', 'prompt_draft_create', 'prompt_commit', 'prompt_deploy',
       'custom_behavior_create', 'custom_behavior_update', 'custom_behavior_delete',
     ]) expect(writes, name).toContain(name);
 
-    const listed = (await listTools(await readOnlyToken())).map((tool) => tool.name);
+    const listed = (await listTools(await readOnlyToken())).map((tool) => tool.name).filter((name) => name !== TOOL_RUN_NAME);
     expect(listed.filter((name) => writes.includes(name))).toEqual([]);
     expect([...listed].sort()).toEqual([...reads].sort());
   });
@@ -397,7 +409,7 @@ describe('the read-only gate covers the whole tool surface', () => {
       expect(error.message, name).toContain(name);
     }
     expect(fetchSpy).not.toHaveBeenCalled();
-  });
+  }, SURFACE_LOOP_TIMEOUT_MS);
 
   it('refuses every old name of a write tool with insufficient_scope', async () => {
     const { writes } = await surface();
@@ -413,9 +425,22 @@ describe('the read-only gate covers the whole tool surface', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('refuses every write tool through tool_run, by current and old name', async () => {
+    const { writes } = await surface();
+    const aliases = Object.keys(TOOL_ALIASES).filter((old) => writes.includes(TOOL_ALIASES[old]));
+    const token = await readOnlyToken();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    for (const name of [...writes, ...aliases]) {
+      const response = new MockResponse();
+      await handler(rpc(token, 'tools/call', { name: TOOL_RUN_NAME, arguments: { name, arguments: {} } }), response as any);
+      expect(JSON.parse(rpcResult(response).result.content[0].text).error.code, name).toBe('insufficient_scope');
+    }
+    expect(fetchSpy).not.toHaveBeenCalled();
+  }, SURFACE_LOOP_TIMEOUT_MS);
+
   it('records the product names it hid, not the registration names', () => {
     const hidden = hiddenWriteToolsOf(createServer(null, undefined, undefined, true));
-    expect(hidden.has('workspace_switch')).toBe(true);
+    expect(hidden.has('project_switch')).toBe(true);
     expect(hidden.has('org_switch')).toBe(false);
   });
 

@@ -23,8 +23,6 @@ export const INTERNAL_RESPONSE_KEYS: ReadonlySet<string> = new Set([
   "organization_id",
   "unique_organization_id",
   "organization_name",
-  "organization_key_id",
-  "organization_key_name",
   "user_email",
   "storage_object_key",
   "keywordsai_params",
@@ -38,7 +36,6 @@ export const INTERNAL_RESPONSE_KEYS: ReadonlySet<string> = new Set([
   "model_discount",
   "pricing_tier",
   "load_balance_group_id",
-  "cache_key",
   "blurred",
   "io_format",
   "format_version",
@@ -49,6 +46,11 @@ export const INTERNAL_RESPONSE_KEYS: ReadonlySet<string> = new Set([
   "system_text",
   "prompt_text",
   "completion_text",
+  // Credentials a write response may echo (a new webhook's signing secrets).
+  "secrets",
+  "secret",
+  "webhook_secret",
+  "signing_secret",
 ]);
 
 export interface JsonBudget {

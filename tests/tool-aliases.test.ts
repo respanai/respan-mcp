@@ -7,6 +7,9 @@ import { registerDocTools } from '../lib/docs/tools.js';
 import { applyToolPolicy } from '../lib/shared/tool-policy.js';
 import { TOOL_ALIASES, resolveToolName, rewriteToolCallNames } from '../lib/shared/tool-aliases.js';
 
+// These tests cover the whole tool surface, not only the tools listed by default.
+process.env.RESPAN_MCP_LIST_ALL = '1';
+
 async function toolNames(server: McpServer): Promise<string[]> {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
@@ -102,12 +105,12 @@ describe('tool aliases', () => {
     const handler = createMcpHandler('https://api.respan.ai', '/.well-known/oauth-protected-resource', 'platform');
     const listed = new MockResponse();
     await handler(rpcRequest('tools/list', {}, { 'respan-enabled-tools': 'dashboard_llm_metrics_summary,workspace_current' }), listed as any);
-    expect(rpcResult(listed).result.tools.map((t: any) => t.name).sort()).toEqual(['metrics_summary', 'workspace_current']);
+    expect(rpcResult(listed).result.tools.map((t: any) => t.name).sort()).toEqual(['metric_summary', 'project_get']);
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ number_of_requests: 2 }), { status: 200 }));
     const called = new MockResponse();
-    await handler(rpcRequest('tools/call', { name: 'dashboard_llm_metrics_summary', arguments: {} }, { 'respan-enabled-tools': 'metrics_summary' }), called as any);
+    await handler(rpcRequest('tools/call', { name: 'dashboard_llm_metrics_summary', arguments: {} }, { 'respan-enabled-tools': 'metric_summary' }), called as any);
     expect(rpcResult(called).result.isError).toBeFalsy();
-    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/dashboard/llm-metrics/summary/');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/clickhouse/dashboard/llm-metrics/summary/');
   });
 
   it('runs a tools/call that uses an old name', async () => {

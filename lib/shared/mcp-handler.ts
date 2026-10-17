@@ -1,22 +1,17 @@
-import { registerMonitorTools } from "../develop/monitors.js";
-import { applyProductVocabulary } from './product-vocabulary.js';
 import { applyToolCatalog } from './tool-catalog.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { RespanClient } from '@respan/respan-api';
 import type { AuthenticatedClient } from './client.js';
-import { registerProductionTools } from '../production/index.js';
-import { registerGuardrailTools } from '../pulses/guardrails.js';
-import { registerPulseTools } from '../pulses/index.js';
-import { registerPromptTools } from '../develop/prompts.js';
-import { registerOrganizationTools } from '../account/organizations.js';
 import {
   applyToolPolicy,
   hiddenWriteToolsOf,
   removeWriteTools,
 } from './tool-policy.js';
 import { SERVER_INSTRUCTIONS } from './instructions.js';
+import { registerRespanTools } from './register-tools.js';
+import { applyToolIndex, isListingAllTools } from './tool-index.js';
 import { resolveToolName, rewriteToolCallNames } from './tool-aliases.js';
 import {
   instrumentToolCalls,
@@ -41,13 +36,13 @@ export function createServer(
   enabledTools?: Set<string>,
   telemetry?: TelemetryContext,
   isReadOnly = false,
+  isListingAll = isListingAllTools(),
 ): McpServer {
   const server = new McpServer(
     { name: 'respan', version: '1.0.0' },
     { instructions: SERVER_INSTRUCTIONS },
   );
   applyToolPolicy(server);
-  applyProductVocabulary(server);
   applyToolCatalog(server);
 
   if (enabledTools?.size) {
@@ -66,16 +61,13 @@ export function createServer(
   // Last, so it sees only the tools the filter above lets through.
   if (telemetry) instrumentToolCalls(server, telemetry);
 
-  registerProductionTools(server, client);
-  registerPulseTools(server, client);
-  registerGuardrailTools(server, client);
-  registerPromptTools(server, client);
-  registerMonitorTools(server, client);
-  registerOrganizationTools(server, client);
+  registerRespanTools(server, client);
   // After every tool is registered, so the decision reads each tool's final
   // name and annotations. A tool the caller turned off via enabledTools was
   // never registered, so it is not reported as hidden for lack of scope.
   if (isReadOnly) removeWriteTools(server);
+  // A caller that names its tools gets exactly those, listed.
+  applyToolIndex(server, isListingAll || Boolean(enabledTools?.size));
   return server;
 }
 
@@ -326,7 +318,8 @@ export function createMcpHandler(
       const isReadOnly = Boolean(options.readOnlyEndpointPath)
         || (oauthAccess ? isReadOnlySession(oauthAccess.session.scope) : false);
       const telemetry = telemetryContext(realm, bearer, req.headers);
-      const server = createServer(authenticatedClient, enabledTools, telemetry, isReadOnly);
+      const isListingAll = isListingAllTools(req.headers['respan-tool-list'] as string | undefined);
+      const server = createServer(authenticatedClient, enabledTools, telemetry, isReadOnly, isListingAll);
       noteAliasedCalls(telemetry, req.body);
       const renamedTools = rewriteToolCallNames(req.body);
       const blockedCalls = hiddenWriteToolCalls(server, req.body);
