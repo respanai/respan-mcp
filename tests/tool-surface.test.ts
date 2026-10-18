@@ -170,18 +170,3 @@ describe('known overlong descriptions', () => {
     }
   });
 });
-
-describe('stdio entry point', () => {
-  // lib/index.ts keeps its own copy of the registration list. Until it shares
-  // createServer, make sure the two lists cannot drift apart.
-  it('registers the same tool modules as /mcp', () => {
-    const registrations = (path: string) =>
-      new Set(
-        [...readFileSync(new URL(path, import.meta.url), 'utf8').matchAll(/\b(register\w+Tools)\(server/g)]
-          .map((match) => match[1]),
-      );
-    const http = registrations('../lib/shared/mcp-handler.ts');
-    expect(http.size).toBeGreaterThan(0);
-    expect(registrations('../lib/index.ts')).toEqual(http);
-  });
-});

@@ -4,6 +4,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../lib/shared/mcp-handler.js';
 import { SERVER_INSTRUCTIONS } from '../lib/shared/instructions.js';
+import { PUBLISHED_TOOL_NAMES } from '../lib/shared/register-tools.js';
+import { FOLDED_TOOL_GROUPS } from '../lib/shared/tool-index.js';
 
 /** Claude Code truncates server instructions past this length. */
 const MAX_INSTRUCTIONS_CHARS = 2_048;
@@ -11,8 +13,8 @@ const MAX_INSTRUCTIONS_CHARS = 2_048;
 const MAX_FIRST_PARAGRAPH_CHARS = 512;
 /** Every snake_case word; each one must be a registered tool or a known field. */
 const SNAKE_CASE_PATTERN = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g;
-/** Response and argument fields the instructions name, which are not tools. */
-const NON_TOOL_WORDS = new Set(['start_time', 'end_time', 'has_more']);
+/** Response and argument fields and folded group names the instructions name, which are not tools. */
+const NON_TOOL_WORDS = new Set(['start_time', 'end_time', 'has_more', 'include_folded', ...Object.keys(FOLDED_TOOL_GROUPS)]);
 
 async function connect() {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -37,22 +39,17 @@ describe('server instructions', () => {
     }
   });
 
-  it('name only tools the server registers', async () => {
-    const client = await connect();
-    let registered: Set<string>;
-    try {
-      registered = new Set((await client.listTools()).tools.map((tool) => tool.name));
-    } finally {
-      await client.close();
-    }
+  it('name only tools the server serves', () => {
     const named = [...new Set(SERVER_INSTRUCTIONS.match(SNAKE_CASE_PATTERN) ?? [])]
       .filter((word) => !NON_TOOL_WORDS.has(word));
     expect(named.length).toBeGreaterThan(5);
-    expect(named.filter((name) => !registered.has(name))).toEqual([]);
+    expect(named.filter((name) => !PUBLISHED_TOOL_NAMES.has(name))).toEqual([]);
   });
 
   it('are also set on the stdio server', () => {
     const stdio = readFileSync(new URL('../lib/index.ts', import.meta.url), 'utf8');
-    expect(stdio).toMatch(/\{\s*instructions:\s*SERVER_INSTRUCTIONS\s*\}/);
+    const handler = readFileSync(new URL('../lib/shared/mcp-handler.ts', import.meta.url), 'utf8');
+    expect(stdio).toMatch(/createServer\(/);
+    expect(handler).toMatch(/\{\s*instructions:\s*SERVER_INSTRUCTIONS\s*\}/);
   });
 });

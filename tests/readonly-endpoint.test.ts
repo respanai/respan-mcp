@@ -11,6 +11,9 @@ import { createMcpHandler } from '../lib/shared/mcp-handler.js';
 import readOnlyResourceMetadata from '../api/well-known/oauth-protected-resource-readonly.js';
 import enterpriseReadOnlyResourceMetadata from '../api/well-known/oauth-protected-resource-enterprise-readonly.js';
 
+// These tests cover the whole tool surface, not only the tools listed by default.
+process.env.RESPAN_MCP_LIST_ALL = '1';
+
 const SECRET = 'readonly-test-secret-that-is-at-least-thirty-two';
 const VERIFIER = 'r'.repeat(64);
 const CHALLENGE = createHash('sha256').update(VERIFIER).digest('base64url');

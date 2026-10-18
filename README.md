@@ -8,6 +8,9 @@ Model Context Protocol (MCP) server for [Respan](https://respan.ai) - access log
 - **Behaviors and errors** - Analyze quality signals, errors, and incidents
 - **Monitors** - Manage alerts, versions, deployment, and delivery history
 - **Prompts** - Manage prompt templates and versions
+- **Datasets, experiments and evaluators** - Build datasets from logs, run experiments, test graders
+- **Project settings** - API keys, caches, exports, webhooks, tags, saved views and limits
+- **Tool search** - Everyday tools are listed; `tool_search` and `tool_run` reach the rest
 
 ---
 
@@ -107,79 +110,42 @@ Share this config with your team:
 
 ---
 
-## Product tools
+## Tools
 
-The platform server exposes nine feature categories: traces, logs, behaviors,
-errors, guardrails, metrics, monitors, prompts, and workspace. Public docs search
-is separate.
-Custom behavior definitions belong to Behaviors; notification destinations belong
-to Monitors. Application conversations are inspected through request/trace tools
-rather than a separate conversation product.
+The server serves the in-product agent's customer tools under the backend's
+names and contracts (`<resource>_<action>`: `log_list`, `metric_summary`,
+`model_usage_list`, `dataset_log_create`), plus a few session tools of its own:
+`project_list`, `project_switch`, `log_filter_schema_get` and
+`behavior_disabled_set`. Workspaces (the tier above projects) are read with
+`workspace_list`, `workspace_get`, `workspace_project_list` and
+`workspace_member_list` (OAuth sessions). A project was once called an organization; old tool
+names (`metrics_summary`, `org_switch`, `workspace_switch`, ...) stay callable
+through `lib/shared/tool-aliases.ts`.
 
-Use live discovery as the schema source of truth:
+**Search and run.** `tools/list` shows ten everyday tools plus `tool_search` and
+`tool_run`. `tool_search` ranks every other tool by resource and action words
+(the backend admin MCP's ranking, with customer synonyms and stop words) and
+returns input schemas for the top three and a one-line summary for the rest;
+`tool_run(name, arguments)` runs one. To save context, listed descriptions keep
+their first paragraph (300 characters) and argument descriptions are capped at
+100 characters; `select:name` returns a tool's full description and schema. Second-line groups (automations, reports, caches, tags,
+webhooks, ...) are folded: search finds them when the keywords name the group,
+or with `include_folded=true`. Listed or not, every tool can also be called by
+name. To list every tool at connect, send `Respan-Tool-List: all`, name the
+tools in `Respan-Enabled-Tools`, or set `RESPAN_MCP_LIST_ALL=1` (stdio).
 
-```bash
-respan tools list --categories --json
-respan tools list --category behaviors --json
-respan tools call behavior_summary --input '{"scope":"traces"}'
-```
+**Thin wrappers.** Each backend tool is one entry in
+`lib/shared/backend-routes.ts`: the request its backend executor sends (method,
+path, query and body keys, fixed values). One executor builds that request and
+returns the server's answer; the server validates, defaults and shapes. A
+tool's schema lists only the arguments its route sends. Two rules keep it safe:
+no tool runs a Respan-chosen model (experiment and dataset eval runs send
+`is_scoring_behaviors=false`; simulation, red-team and suggestion tools are not
+served), and credential fields are stripped from every result.
 
-The [shared tool directory](https://respan.ai/docs/documentation/mcp#tool-categories)
-explains every feature's tools. CLI forwards calls to this server and keeps no
-independent category map or schema snapshot.
-
-Feature tools may share an API. Metrics and Errors reuse the chart API with
-separate metric vocabularies; grouped metrics and user usage reuse the ranking
-API; Monitors reuse the workflow API with the resource type fixed to monitors.
-Trace totals and request totals remain distinct. Rates and averages are returned
-as buckets, never summed into misleading totals.
-
-Behavior analytics default to whole traces. Use explicit `scope: "spans"` for
-request-level gateway analysis. The backend API still defaults to spans; the
-product tools select traces explicitly. Compatible older tool names remain
-callable, but also use this new trace default unless scope is provided.
-
-Monitors check resource type before writing and preserve complete content,
-including stored webhook secrets, when a committed family needs a new draft.
-Secrets are omitted from results. Alert history counts delivered notifications,
-not every execution; an empty history is not evidence of inactivity.
-
-Guardrails are read-only: totals, outcomes over time and blocked requests by
-dimension accept an API key; `guardrail_list` (the catalog, which guardrails are
-on, and PII redaction settings) requires OAuth. Nothing turns a guardrail on or
-off.
-
-Workspace identity/selection and behavior detection settings require OAuth.
-Behavior settings writes resolve their target from the current session and replace
-only the disabled list. API keys remain project-bound.
-
-`log_list` and `trace_list` pages say what they cut: `returned`, and a
-`truncated` note when text was shortened or, as a last resort, the last rows
-were reduced to their IDs. IDs and names you can filter on are never
-shortened, so a row can always be read in full with `log_get` or `trace_get`.
-When paging, pass back the `start_time` and `end_time` the page reports.
-
-The public surface does not register automation, evaluator, grader, dataset,
-experiment, generic workflow or export-workflow tools. Their backend capabilities
-remain available internally and may be reused by a supported feature. Generic
-workflow IDs cannot safely be aliased to monitor IDs.
-
----
-
-## Filter Syntax
-
-`log_list` and `trace_list` take common filters as plain parameters (`model`, `status`, `customer_identifier`, `errors_only`, ...). For anything else they accept an advanced `filters` array:
-
-```json
-[
-  {"field": "latency", "operator": "gt", "value": [5]},
-  {"field": "metadata__session_id", "operator": "", "value": ["abc123"]}
-]
-```
-
-**Operators:** `""` (equal), `not`, `lt`, `lte`, `gt`, `gte`, `contains`, `icontains`, `startswith`, `endswith`, `in`, `isnull`
-
-The request-log endpoints reject unknown fields with a 400 that names the problem. The traces endpoint silently ignores them, so `trace_list` checks its fields against the closed set the backend honours (see `lib/shared/filter-fields.ts`) and rejects the rest before sending. Custom `metadata__<key>` fields work on `log_list` only; traces have no metadata columns.
+**Read-only connections** (OAuth without "Also allow changes", or
+`/mcp/readonly`) see only tools annotated read-only; `tool_run` refuses the rest
+with `insufficient_scope`.
 
 ---
 
@@ -187,53 +153,40 @@ The request-log endpoints reject unknown fields with a 400 that names the proble
 
 ```
 respan-mcp/
-├── api/
-│   └── mcp.ts                # HTTP entry point (Vercel serverless function)
+├── api/                      # HTTP entry points (Vercel), OAuth and metadata routes
 ├── lib/
 │   ├── index.ts              # Stdio entry point (local mode)
 │   ├── generated/
 │   │   └── backend-tools.json # backend tool catalog (names, descriptions, schemas)
 │   ├── shared/
-│   │   ├── client.ts         # API client, auth config, path validation
-│   │   ├── backend-tool.ts   # registers a tool from the backend catalog
+│   │   ├── mcp-handler.ts    # createServer and the hosted handler
+│   │   ├── register-tools.ts # every tool the server registers
+│   │   ├── backend-routes.ts # the request each backend tool sends
+│   │   ├── backend-route.ts  # the generic thin executor
+│   │   ├── tool-index.ts     # tool_search, tool_run, folded groups
 │   │   ├── tool-aliases.ts   # old tool names -> current names
-│   │   ├── tool-policy.ts    # read-only / destructive annotations
+│   │   ├── tool-policy.ts    # read-only / destructive annotations, read-only removal
 │   │   └── tool-result.ts    # size budgets, internal-field stripping
-│   ├── production/
-│   │   ├── logs.ts           # log_list, log_get
-│   │   ├── filter-schema.ts  # log_filter_schema
-│   │   ├── traces.ts         # trace_list, trace_get
-│   │   ├── threads.ts        # legacy module, not publicly registered
-│   │   └── metrics.ts        # metric summaries, grouped rankings, user usage
-│   ├── pulses/
-│   │   ├── index.ts          # behaviors, error issues, incidents
-│   │   └── guardrails.ts     # guardrail_summary, guardrail_timeseries, guardrail_grouped, guardrail_list
-│   ├── account/
-│   │   └── organizations.ts  # workspace identity and selection
-│   └── develop/
-│       └── prompts.ts        # prompt_list, prompt_get, versions
+│   ├── production/filter-schema.ts # log_filter_schema_get
+│   ├── pulses/settings.ts    # behavior_disabled_set
+│   ├── account/projects.ts   # project_list, project_switch (workspace_* tools are routed)
+│   └── oauth/                # OAuth 2.1 broker
 ├── vercel.json               # Vercel config (rewrites, function timeout)
-├── tsconfig.json             # TypeScript config
 └── package.json
 ```
 
-### Architecture
-
-- **Two entry points:** `api/mcp.ts` (HTTP via Vercel) and `lib/index.ts` (stdio for local use)
-- **Shared core:** Both entry points create an `AuthConfig` and pass it to the same tool registration functions via closures - no global mutable state
-- **Tool modules:** Organized by domain (`production/` for runtime data, `develop/` for prompt management)
-- **API client:** `lib/shared/client.ts` handles upstream requests and authentication against the configured backend
-
 ### Syncing with the backend
 
-`lib/generated/backend-tools.json` is a snapshot of the customer tool catalog the in-product agent uses. The snapshot supplies backend contracts and wire arguments. Product tools can adapt names, descriptions and defaults while reusing those APIs; `product-vocabulary.ts` publishes the product names, and `tool-aliases.ts` preserves compatible calls. Public tool registration is an explicit feature selection, not an export of every backend resource. To refresh it from a backend checkout:
+`lib/generated/backend-tools.json` is a snapshot of the customer tool catalog the
+in-product agent uses. To refresh it from a backend checkout:
 
 ```bash
 cd ../respan-backend
 ./.venv/bin/python ../respan-mcp/scripts/export_backend_tools.py --out ../respan-mcp/lib/generated/backend-tools.json
 ```
 
-If a tool this server registers was renamed or removed in the backend, startup fails loudly rather than dropping it.
+A routed tool missing from the snapshot fails startup rather than disappearing.
+A new backend tool is served once it has a route in `lib/shared/backend-routes.ts`.
 
 ### Telemetry
 

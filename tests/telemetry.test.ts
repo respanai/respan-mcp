@@ -15,6 +15,9 @@ import {
   type TelemetryContext,
 } from '../lib/shared/telemetry.js';
 
+// These tests cover the whole tool surface, not only the tools listed by default.
+process.env.RESPAN_MCP_LIST_ALL = '1';
+
 const CTX: TelemetryContext = { realm: 'platform', authKind: 'api_key', sessionKey: 'abc123def456' };
 const SECRET_ARG_VALUE = 'customer-secret-value-7c1e';
 
@@ -159,15 +162,14 @@ describe('tool call telemetry', () => {
     expect(events()).toEqual([expect.objectContaining({ tool: 'log_list', status: 'unknown_tool' })]);
   });
 
-  it('records the category of a product tool registered under its backend name', async () => {
-    // org_switch is registered under its backend name and renamed workspace_switch.
+  it('records the category of a product-renamed tool', async () => {
     const client = await connect(createServer(null, undefined, CTX));
-    const result = await client.callTool({ name: 'workspace_switch', arguments: {} });
+    const result = await client.callTool({ name: 'project_switch', arguments: {} });
     await client.close();
     expect(result.isError).toBe(true);
     expect(events()).toEqual([expect.objectContaining({
-      tool: 'workspace_switch',
-      category: 'workspace',
+      tool: 'project_switch',
+      category: 'project',
       status: 'invalid_arguments',
       alias_used: false,
     })]);
@@ -330,19 +332,19 @@ describe('hosted handler telemetry', () => {
   it('logs an aliased call under its current name, category and old name', async () => {
     await handler(rpcRequest([
       { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'org_switch', arguments: {} } },
-      { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'workspace_switch', arguments: {} } },
+      { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'project_switch', arguments: {} } },
     ]), new MockResponse() as any);
 
     const calls = events().filter((event) => event.event === 'mcp.tool_call');
     expect(calls).toEqual([
       expect.objectContaining({
-        tool: 'workspace_switch',
-        category: 'workspace',
+        tool: 'project_switch',
+        category: 'project',
         status: 'invalid_arguments',
         alias_used: true,
         alias: 'org_switch',
       }),
-      expect.objectContaining({ tool: 'workspace_switch', category: 'workspace', alias_used: false }),
+      expect.objectContaining({ tool: 'project_switch', category: 'project', alias_used: false }),
     ]);
     expect(calls[1]).not.toHaveProperty('alias');
     expect(events()).toContainEqual(expect.objectContaining({ event: 'mcp.tool_alias', old_names: ['org_switch'] }));

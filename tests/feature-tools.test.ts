@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../lib/shared/mcp-handler.js';
+import { fitFilterSchema } from '../lib/production/filter-schema.js';
 import type { AuthenticatedClient } from '../lib/shared/client.js';
 
 async function fixture(responses: Array<{ status?: number; body: unknown }> = [{ body: {} }]) {
@@ -23,176 +24,115 @@ async function fixture(responses: Array<{ status?: number; body: unknown }> = [{
   return { client, fetch, call };
 }
 const window = { start_time: '2026-10-01T00:00:00Z', end_time: '2026-10-02T00:00:00Z' };
+const text = (result: any): string => result.content[0].text;
 
-describe('feature-oriented MCP contracts', () => {
-  it('exposes nine categories and the agreed feature operations without a conversation product', async () => {
-    const { client } = await fixture();
-    try {
-      const { tools } = await client.listTools();
-      const names = tools.map(t => t.name);
-      expect(tools).toHaveLength(57);
-      expect(new Set(tools.map(t => t._meta?.['respan/category'])).size).toBe(9);
-      for (const name of ['trace_summary', 'log_summary', 'log_filter_schema', 'behavior_summary', 'behavior_records', 'behavior_settings_get', 'behavior_settings_update', 'error_group_list', 'error_group_get', 'error_timeseries', 'incident_list', 'metrics_summary', 'metrics_timeseries', 'metrics_grouped', 'user_usage_list', 'monitor_alert_list', 'monitor_alert_timeseries', 'notification_destination_list', 'notification_destination_get', 'prompt_version_list', 'prompt_draft_update', 'workspace_current', 'workspace_list', 'workspace_switch', 'guardrail_summary', 'guardrail_timeseries', 'guardrail_grouped', 'guardrail_list']) expect(names).toContain(name);
-      for (const name of ['thread_list', 'thread_get', 'pulse_behaviors_summary', 'org_list']) expect(names).not.toContain(name);
-    } finally { await client.close(); }
-  });
-
-  it('offers no behavior tool that runs a Respan model, under any name', async () => {
-    const { client, fetch } = await fixture();
-    try {
-      const { tools } = await client.listTools();
-      expect(tools.filter(t => t._meta?.['respan/category'] === 'behaviors')).toHaveLength(12);
-      for (const name of ['custom_behavior_suggest', 'custom_behavior_analyze']) {
-        expect(tools.map(t => t.name)).not.toContain(name);
-        // An old client calling a dropped name gets a clean unknown-tool error, not a backend call.
-        const result = await client.callTool({ name, arguments: {} }).catch((error: Error) => ({ isError: true, content: [{ type: 'text', text: error.message }] }));
-        expect(result.isError).toBe(true);
-        expect(JSON.stringify(result.content)).toMatch(new RegExp(`${name}.*not found`, 'i'));
-      }
-      expect(fetch).not.toHaveBeenCalled();
-    } finally { await client.close(); }
-  });
-
-  it('ignores a dropped behavior name in the enabled-tools list', async () => {
-    const [a, b] = InMemoryTransport.createLinkedPair();
-    await createServer(null, new Set(['custom_behavior_suggest', 'custom_behavior_analyze', 'custom_behavior_create'])).connect(b);
-    const client = new Client({ name: 'enabled-test', version: '1' });
-    await client.connect(a);
-    try {
-      const { tools } = await client.listTools();
-      expect(tools.map(t => t.name)).toEqual(['custom_behavior_create']);
-    } finally { await client.close(); }
-  });
-
-  it('defaults behavior analysis to whole traces but preserves an explicit gateway scope', async () => {
+describe('model_usage_list filters', () => {
+  it('forwards filters the breakdown endpoint compiles', async () => {
     const { client, call } = await fixture();
     try {
-      await client.callTool({ name: 'behavior_summary', arguments: window });
-      await client.callTool({ name: 'behavior_records', arguments: { ...window, behavior: 'refusal', scope: 'spans' } });
-      expect(call()).toMatchObject({ path: '/api/pulses/behaviors/', body: { ...window, scope: 'traces' } });
-      expect(call(1)).toMatchObject({ path: '/api/pulses/behaviors/logs/', body: { ...window, behavior: 'refusal', scope: 'spans' } });
+      const filters = { provider_id: { operator: '', value: 'anthropic' } };
+      await client.callTool({ name: 'model_usage_list', arguments: { ...window, filters } });
+      expect(call().body).toEqual({ filters });
     } finally { await client.close(); }
   });
 
-  it('reuses the chart API with feature-specific metric bounds and preserves buckets', async () => {
-    const buckets = { error_percentage: [{ date_group: '2026-10-01', modelA: 20 }, { date_group: '2026-10-02', modelA: 0 }] };
-    const { client, call, fetch } = await fixture([{ body: buckets }]);
-    try {
-      const invalid = await client.callTool({ name: 'error_timeseries', arguments: { ...window, metric: 'total_cost' } });
-      expect(invalid.isError).toBe(true);
-      expect(fetch).not.toHaveBeenCalled();
-      const result = await client.callTool({ name: 'error_timeseries', arguments: { ...window, metric: 'error_percentage', time_tick: 'day' } });
-      await client.callTool({ name: 'metrics_timeseries', arguments: { ...window, metric: 'total_cost' } });
-      expect(call()).toMatchObject({ path: '/clickhouse/dashboard/time-series/breakdown/', body: { filters: {}, metrics_to_aggregate: ['error_percentage'] } });
-      expect(call(1)).toMatchObject({ path: '/clickhouse/dashboard/time-series/breakdown/', body: { filters: {}, metrics_to_aggregate: ['total_cost'] } });
-      expect(JSON.parse((result.content as any)[0].text).data).toEqual(buckets);
-    } finally { await client.close(); }
-  });
-
-  it('distinguishes trace totals from request totals and supports the intentional all-logs override', async () => {
-    const { client, call } = await fixture();
-    try {
-      const traces = await client.callTool({ name: 'trace_summary', arguments: window });
-      await client.callTool({ name: 'log_summary', arguments: window });
-      const logs = await client.callTool({ name: 'log_summary', arguments: { ...window, filters: { organization_key_id: { operator: '', value: '' } } } });
-      expect(call()).toMatchObject({ path: '/clickhouse/traces/summary/', body: { filters: {} } });
-      expect(call(1)).toMatchObject({ path: '/clickhouse/request-logs/summary/', body: { filters: { organization_key_id: { operator: 'not_empty', value: true } } } });
-      expect(call(2)).toMatchObject({ body: { filters: {} } });
-      expect(JSON.parse((traces.content as any)[0].text).unit).toBe('traces');
-      expect(JSON.parse((logs.content as any)[0].text).unit).toBe('requests');
-    } finally { await client.close(); }
-  });
-
-  it('rejects unsupported trace filters and foreign organization scope before issuing a request', async () => {
-    const { client, fetch } = await fixture();
-    try {
-      for (const filters of [{ metadata__tenant: { operator: '', value: 'x' } }, { unique_organization_id: { operator: '', value: 'other-org' } }]) {
-        const result = await client.callTool({ name: 'trace_summary', arguments: { ...window, filters } });
-        expect(result.isError).toBe(true);
-      }
-      expect(fetch).not.toHaveBeenCalled();
-    } finally { await client.close(); }
-  });
-
-  it('groups providers through the ranking API while respecting the selected environment', async () => {
-    const { client, call } = await fixture([{ body: { total_cost: [{ provider_id: 'anthropic', total_cost: 5 }] } }]);
-    try {
-      const result = await client.callTool({ name: 'metrics_grouped', arguments: { ...window, group_by: 'provider_id', environment: 'prod', sort_by: 'total_cost' } });
-      expect(call()).toMatchObject({ path: '/api/dashboard/breakdown/', query: { start_time: new Date(window.start_time).toISOString(), end_time: new Date(window.end_time).toISOString(), environment: 'prod', breakdown_by: 'provider_id', include_all_metrics: 'true', sort_by: 'total_cost', limit: '10' } });
-      expect(JSON.parse((result.content as any)[0].text).results[0]).toEqual({ provider_id: 'anthropic', total_cost: 5 });
-    } finally { await client.close(); }
-  });
-
-  it('sends metrics_grouped filters as AND lists and OR bundles, with provider_id added as an AND', async () => {
-    const { client, call } = await fixture([{ body: { number_of_requests: [{ model: 'gpt-4o', number_of_requests: 3, total_cost: 1, unknown: 'x' }] } }]);
-    try {
-      const result = await client.callTool({ name: 'metrics_grouped', arguments: { ...window, provider_id: 'openai', filters: [
-        { field: 'latency', operator: 'gte', value: [1] },
-        { field: 'latency', operator: 'lte', value: [5] },
-        { field: 'status_code', operator: '', value: [200] },
-        { field: 'status_code', operator: '', value: [429], connector: 'OR' },
-        { field: 'provider_id', operator: 'not', value: ['azure'] },
-      ] } });
-      expect(call().body).toEqual({ filters: {
-        latency: [{ operator: 'gte', value: [1] }, { operator: 'lte', value: [5] }],
-        or_group__status_code: { connector: 'AND', filter_params: { status_code: [{ operator: '', value: [200] }, { operator: '', value: [429], connector: 'OR' }] } },
-        provider_id: [{ operator: 'not', value: ['azure'] }, { operator: '', value: 'openai' }],
-      } });
-      expect(JSON.parse((result.content as any)[0].text).results).toEqual([{ model: 'gpt-4o', number_of_requests: 3, total_cost: 1 }]);
-    } finally { await client.close(); }
-  });
-
-  it('keeps metrics_grouped unfiltered without filters', async () => {
-    const { client, call } = await fixture();
-    try {
-      await client.callTool({ name: 'metrics_grouped', arguments: window });
-      expect(call().body).toEqual({ filters: {} });
-    } finally { await client.close(); }
-  });
-
-  it('rejects metrics_grouped filters the breakdown endpoint cannot compile before issuing a request', async () => {
+  it('rejects filters the breakdown endpoint cannot compile before issuing a request', async () => {
     const { client, fetch } = await fixture();
     try {
       for (const field of ['behaviors', 'topics', 'fault_domain', 'messages_smart', 'unique_organization_id', 'organization_id']) {
-        const result = await client.callTool({ name: 'metrics_grouped', arguments: { ...window, filters: [{ field, operator: '', value: ['x'] }] } });
-        expect(result.isError).toBe(true);
-        expect(JSON.parse((result.content as any)[0].text).error).toMatchObject({ code: 'validation_error', unsupported_fields: [field] });
+        const result = await client.callTool({ name: 'model_usage_list', arguments: { ...window, filters: { [field]: { operator: '', value: 'x' } } } });
+        expect(result.isError, field).toBe(true);
+        expect(text(result), field).toContain(`Cannot filter by ${field}`);
       }
       expect(fetch).not.toHaveBeenCalled();
     } finally { await client.close(); }
   });
+});
 
-  it('echoes the 90-day window the breakdown endpoint actually aggregates', async () => {
-    const { client, call } = await fixture();
-    try {
-      const result = await client.callTool({ name: 'metrics_grouped', arguments: { start_time: '2026-01-01T00:00:00Z', end_time: '2026-10-01T00:00:00Z' } });
-      expect(call().query).toMatchObject({ start_time: '2026-07-03T00:00:00.000Z', end_time: '2026-10-01T00:00:00.000Z' });
-      expect(JSON.parse((result.content as any)[0].text)).toMatchObject({ start_time: '2026-07-03T00:00:00.000Z', requested_start_time: '2026-01-01T00:00:00.000Z' });
-      expect(call().query).not.toHaveProperty('requested_start_time');
-    } finally { await client.close(); }
-  });
-
-  it('resolves behavior settings writes from the current session and exposes only the disabled list', async () => {
+describe('behavior_disabled_set', () => {
+  it('writes the current project, never one the caller names', async () => {
     const { client, call } = await fixture([
-      { body: { unique_organization_id: 'own-org', disabled_span_behaviors: ['refusal'], secret: 'private' } },
       { body: { unique_organization_id: 'own-org' } },
-      { body: { disabled_span_behaviors: [], secret: 'private' } },
+      { body: { disabled_span_behaviors: [] } },
     ]);
     try {
-      const read = await client.callTool({ name: 'behavior_settings_get', arguments: {} });
-      const write = await client.callTool({ name: 'behavior_settings_update', arguments: { disabled_span_behaviors: [], organization_id: 'foreign-org' } });
-      expect(JSON.parse((read.content as any)[0].text)).toEqual({ disabled_span_behaviors: ['refusal'] });
-      expect(call(2)).toEqual({ path: '/user/organization/own-org/', query: {}, method: 'PATCH', body: { disabled_span_behaviors: [] } });
-      expect(JSON.parse((write.content as any)[0].text)).toEqual({ disabled_span_behaviors: [] });
+      await client.callTool({ name: 'behavior_disabled_set', arguments: { disabled_span_behaviors: [], organization_id: 'foreign-org' } });
+      expect(call(1)).toEqual({ path: '/user/organization/own-org/', query: {}, method: 'PATCH', body: { disabled_span_behaviors: [] } });
     } finally { await client.close(); }
   });
 
-  it('does not update behavior settings when current-workspace identity is missing', async () => {
-    const { client, fetch } = await fixture([{ body: { name: 'Workspace' } }]);
+  it('changes nothing when the current project has no identifier', async () => {
+    const { client, fetch } = await fixture([{ body: { name: 'Project' } }]);
     try {
-      const result = await client.callTool({ name: 'behavior_settings_update', arguments: { disabled_span_behaviors: [] } });
+      const result = await client.callTool({ name: 'behavior_disabled_set', arguments: { disabled_span_behaviors: [] } });
       expect(result.isError).toBe(true);
+      expect(text(result)).toContain('no settings were changed');
       expect(fetch).toHaveBeenCalledTimes(1);
+    } finally { await client.close(); }
+  });
+});
+
+describe('log_filter_schema_get', () => {
+  it('reads the backend filter schema with a GET and passes the environment', async () => {
+    const schema = { filters: [{ metric: 'latency', percentiles: { p90: 4.4 } }], operators: {}, measurements: { is_measured: true } };
+    const { client, call } = await fixture([{ body: schema }]);
+    try {
+      const result = await client.callTool({ name: 'log_filter_schema_get', arguments: { environment: 'prod' } });
+      expect(call()).toEqual({ path: '/api/request-logs/filter-schema/', method: 'GET', query: { environment: 'prod' }, body: undefined });
+      expect(JSON.parse(text(result))).toEqual(schema);
+    } finally { await client.close(); }
+  });
+
+  it('says the backend lacks the endpoint when it answers 404', async () => {
+    const { client } = await fixture([{ status: 404, body: { detail: 'Not found.' } }]);
+    try {
+      const result = await client.callTool({ name: 'log_filter_schema_get', arguments: {} });
+      expect(result.isError).toBe(true);
+      expect(text(result)).toContain('not available on this Respan backend');
+    } finally { await client.close(); }
+  });
+
+  it('drops whole metadata example values first, keeping closed vocabularies whole', async () => {
+    const value = 'tenant-value-0000000';
+    const status = { metric: 'status', operators: [''], example_values: ['success', 'failed'], value_count: 2, value_labels: { failed: 'Error' } };
+    const metadata = Array.from({ length: 100 }, (_, i) => ({
+      metric: `metadata__key_${i}`,
+      operators: ['', 'in'],
+      example_values: Array.from({ length: 30 }, (__, j) => `${value}${j}`),
+    }));
+    const { client } = await fixture([{ body: { filters: [status, ...metadata], operators: {}, measurements: { is_measured: true } } }]);
+    try {
+      const result = await client.callTool({ name: 'log_filter_schema_get', arguments: {} });
+      const body = JSON.parse(text(result));
+      expect(text(result).length).toBeLessThanOrEqual(40_000);
+      expect(body.filters).toHaveLength(101);
+      expect(body.filters[0]).toEqual(status);
+      expect(body.filters[1].example_values).toEqual(Array.from({ length: 10 }, (_, j) => `${value}${j}`));
+    } finally { await client.close(); }
+  });
+
+  it('drops the labels of values it drops, then metadata keys as a last resort', () => {
+    const ids = Array.from({ length: 30 }, (_, j) => `prompt-${j}`);
+    const prompt = {
+      metric: 'prompt_id',
+      example_values: ids,
+      value_count: 30,
+      value_labels: Object.fromEntries(ids.map((id) => [id, 'x'.repeat(2_000)])),
+    };
+    const metadata = Array.from({ length: 100 }, (_, i) => ({ metric: `metadata__${'k'.repeat(400)}${i}` }));
+
+    const body = JSON.parse(fitFilterSchema({ filters: [prompt, ...metadata], metadata_filters_omitted: 5 }));
+
+    expect(body.filters).toEqual([{ ...prompt, example_values: ids.slice(0, 3), value_labels: Object.fromEntries(ids.slice(0, 3).map((id) => [id, 'x'.repeat(2_000)])) }]);
+    expect(body.metadata_filters_omitted).toBe(105);
+  });
+
+  it('still reports other backend errors', async () => {
+    const { client } = await fixture([{ status: 403, body: 'denied' }]);
+    try {
+      const result = await client.callTool({ name: 'log_filter_schema_get', arguments: {} });
+      expect(result.isError).toBe(true);
+      expect(text(result)).toMatch(/403/);
     } finally { await client.close(); }
   });
 });
