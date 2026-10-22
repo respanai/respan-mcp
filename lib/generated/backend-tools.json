@@ -4874,6 +4874,23 @@
    "readOnly": true
   },
   {
+   "name": "filter_options_get",
+   "description": "Get the filters a page view supports: each filter's key, operators, value type and choices. Call it before filtering a list tool to look up which keys that resource accepts.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "view": {
+      "type": "string",
+      "description": "Page view name, e.g. logs, traces or prompts."
+     }
+    },
+    "required": [
+     "view"
+    ]
+   },
+   "readOnly": true
+  },
+  {
    "name": "foundation_model_get",
    "description": "Read one model family by exact model_name, with its variants and variant_summary.",
    "inputSchema": {

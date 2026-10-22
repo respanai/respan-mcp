@@ -118,6 +118,7 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   export_job_list: { requests: [{ method: 'GET', path: '/api/export-jobs/list/', query: ['page', 'page_size'] }] },
   export_job_summary: { requests: [{ method: 'GET', path: '/api/export-jobs/summary/' }] },
   export_list: { requests: [{ method: 'GET', path: '/api/export-jobs/', query: ['page', 'page_size'] }] },
+  filter_options_get: { requests: [{ method: 'GET', path: '/api/filters/', query: ['view'] }] },
   foundation_model_get: { requests: [{ method: 'GET', path: '/api/foundation-models/{model_name}/' }] },
   foundation_model_list: { requests: [{ method: 'POST', path: '/api/foundation-models/list/', query: ['page', 'page_size', 'sort_by'], body: ['filters'] }] },
   grader_commit: { requests: [{ method: 'POST', path: '/api/evaluators/{grader_id}/versions/', body: ['version_description'] }] },
