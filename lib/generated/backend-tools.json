@@ -8994,6 +8994,121 @@
    "readOnly": true
   },
   {
+   "name": "route_create",
+   "description": "Create a route for one project. 409 if the project already has a route of that name.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string",
+      "description": "Route name; it may contain slashes, as in `openai/gpt-6-luna`."
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "fallback",
+       "split"
+      ],
+      "description": "split sends each request to one entry by weight; fallback tries entries in order."
+     },
+     "entries": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "weight": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "name"
+       ]
+      },
+      "description": "Entries in order. A split needs a positive total weight."
+     }
+    },
+    "required": [
+     "name",
+     "mode",
+     "entries"
+    ]
+   },
+   "readOnly": false
+  },
+  {
+   "name": "route_delete",
+   "description": "Delete a project's route.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string",
+      "description": "Route name; it may contain slashes, as in `openai/gpt-6-luna`."
+     }
+    },
+    "required": [
+     "name"
+    ]
+   },
+   "readOnly": false
+  },
+  {
+   "name": "route_list",
+   "description": "List a project's own routes.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {},
+    "required": []
+   },
+   "readOnly": true
+  },
+  {
+   "name": "route_update",
+   "description": "Update a project's route. Send mode, entries or both; a field left out keeps its value.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string",
+      "description": "Route name; it may contain slashes, as in `openai/gpt-6-luna`."
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "fallback",
+       "split"
+      ],
+      "description": "split sends each request to one entry by weight; fallback tries entries in order."
+     },
+     "entries": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "weight": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "name"
+       ]
+      },
+      "description": "Entries in order. A split needs a positive total weight."
+     }
+    },
+    "required": [
+     "name"
+    ]
+   },
+   "readOnly": false
+  },
+  {
    "name": "saved_dashboard_create",
    "description": "Save a dashboard using existing built-in widgets or existing same-project saved SQL queries. Default visibility is project shared, matching the UI; use personal when requested. Read back saved state. This creates configuration, not computed analytics or SQL queries.",
    "inputSchema": {
