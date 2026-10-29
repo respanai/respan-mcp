@@ -1044,7 +1044,7 @@
   },
   {
    "name": "behavior_guardrail_settings_get",
-   "description": "Which Span-01 guardrails are enabled for the project (gateway blocking).",
+   "description": "Which guardrails are enabled for the project (gateway blocking).",
    "inputSchema": {
     "type": "object",
     "properties": {},
@@ -1054,7 +1054,7 @@
   },
   {
    "name": "behavior_guardrail_settings_update",
-   "description": "Replace the project's enabled Span-01 guardrails: ids from behavior_guardrail_type_list; [] turns them off. Changes live gateway blocking; confirm with the user first.",
+   "description": "Replace the project's enabled guardrails: ids from behavior_guardrail_type_list; [] turns them off. Changes live gateway blocking; confirm with the user first.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -1151,7 +1151,7 @@
   },
   {
    "name": "behavior_guardrail_type_list",
-   "description": "The Span-01 guardrails the project can enable: predefined and its own custom ones.",
+   "description": "The guardrails the project can enable: predefined and its own custom ones.",
    "inputSchema": {
     "type": "object",
     "properties": {},
