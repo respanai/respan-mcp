@@ -38,6 +38,8 @@ export interface BackendRoute {
   json?: readonly string[];
   /** An argument whose object is the whole body. */
   spread?: string;
+  /** Path arguments that may contain `/`: each segment is encoded, the slashes kept. */
+  slashed?: readonly string[];
   /** `filters` fields the endpoint cannot compile: it 500s or matches nothing, so they are refused. */
   unsupportedFilters?: readonly string[];
 }
@@ -98,7 +100,10 @@ export function buildRequest(route: BackendRoute, args: Record<string, unknown>)
   };
   const path = request.path.replace(PLACEHOLDER, (_, key: string) => {
     if (!isPresent(args[key])) throw new Error(`${key} is required.`);
-    return encodeURIComponent(String(args[key]));
+    const text = String(args[key]);
+    return route.slashed?.includes(key)
+      ? text.split('/').map(encodeURIComponent).join('/')
+      : encodeURIComponent(text);
   });
   const query: Record<string, string | number | boolean | undefined> = {};
   for (const entry of request.query ?? []) {
