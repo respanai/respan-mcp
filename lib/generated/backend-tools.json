@@ -5212,6 +5212,198 @@
    "readOnly": true
   },
   {
+   "name": "inbox_delivery_bulk_update",
+   "description": "Change the current user's own view of Inbox items: read / unread, archive / unarchive, snooze until snoozed_until / unsnooze, unsubscribe / subscribe. Teammates are unaffected; to resolve or assign for everyone use inbox_item_update. Needs a signed-in user.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "item_ids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "action": {
+      "type": "string",
+      "enum": [
+       "read",
+       "unread",
+       "archive",
+       "unarchive",
+       "snooze",
+       "unsnooze",
+       "unsubscribe",
+       "subscribe"
+      ]
+     },
+     "snoozed_until": {
+      "type": "string",
+      "description": "ISO 8601 time; snooze only"
+     }
+    },
+    "required": [
+     "item_ids",
+     "action"
+    ]
+   },
+   "readOnly": false
+  },
+  {
+   "name": "inbox_item_get",
+   "description": "One Inbox item with its timeline (status changes, assignments, notes). For errors also the linked incidents and links: the error_group fingerprint and the filters for log_list.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "item_id": {
+      "type": "string",
+      "description": "Inbox item id"
+     }
+    },
+    "required": [
+     "item_id"
+    ]
+   },
+   "readOnly": true
+  },
+  {
+   "name": "inbox_item_list",
+   "description": "List the current user's Inbox: alerts delivered to them (errors, access requests, safety notices), newest first, with their own read state. Archived and snoozed items are left out unless is_archived / is_snoozed. RETURNS results plus total_count and unread_count for the filter. Needs a signed-in user, not an API key.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "status": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "triage",
+        "acknowledged",
+        "resolved",
+        "ignored"
+       ]
+      }
+     },
+     "severity": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+       ]
+      }
+     },
+     "reason": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "subscribed",
+        "assigned",
+        "mentioned"
+       ]
+      },
+      "description": "Why it reached you"
+     },
+     "assignee": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "User ids, \"me\", or \"none\" for unassigned"
+     },
+     "tags": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Label tag ids; matches any"
+     },
+     "is_unread": {
+      "type": "boolean"
+     },
+     "is_archived": {
+      "type": "boolean",
+      "description": "true lists only your archived items"
+     },
+     "is_snoozed": {
+      "type": "boolean",
+      "description": "true lists only your items still snoozed"
+     },
+     "environment": {
+      "type": "string",
+      "description": "One environment (e.g. prod, test); all by default"
+     },
+     "page": {
+      "type": "integer",
+      "description": "Page number, 1-based (server default when omitted)."
+     },
+     "page_size": {
+      "type": "integer",
+      "description": "Rows per page (server default when omitted; the server enforces its own maximum)."
+     }
+    },
+    "required": []
+   },
+   "readOnly": true
+  },
+  {
+   "name": "inbox_item_note_create",
+   "description": "Add a note to an Inbox item's timeline; it shows up as new activity for teammates who get the item.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "item_id": {
+      "type": "string",
+      "description": "Inbox item id"
+     },
+     "note": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "item_id",
+     "note"
+    ]
+   },
+   "readOnly": false
+  },
+  {
+   "name": "inbox_item_update",
+   "description": "Set an Inbox item's status, its assignee, or both, for the whole project. Access requests are decided on their own, so their status is refused here.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "item_id": {
+      "type": "string",
+      "description": "Inbox item id"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "triage",
+       "acknowledged",
+       "resolved",
+       "ignored"
+      ]
+     },
+     "assignee_id": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "description": "Member user id (org_member_list); null unassigns"
+     }
+    },
+    "required": [
+     "item_id"
+    ]
+   },
+   "readOnly": false
+  },
+  {
    "name": "incident_list",
    "description": "List INCIDENTS — detected time windows of anomalously elevated error rate for one (environment, fault_domain) scope, newest first (PAGINATED). Use for: 'were we down', outage timelines, 'is anything broken right now' (filter state='ongoing'). RETURNS per incident: id, title, environment, fault_domain, started_at, ended_at (null while ongoing), duration_seconds, data_through_at, state (ongoing|past), resolution_reason (recovered|no_traffic|stale), severity (low|medium|high|critical), trigger (spike|drift), peak_error_rate, baseline_error_rate, error_count, request_count, hot_bucket_count, error_class_breakdown, dominant_error_class, dominant_fingerprint (feed to error_group_get), impact, primary_error, acknowledged_at, is_acknowledged, notes, created_at, updated_at. meta carries total_count and ongoing_count.",
    "inputSchema": {
