@@ -204,7 +204,7 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   prompt_version_get: { requests: [{ method: 'GET', path: '/api/prompts/{prompt_id}/versions/{version}/' }] },
   prompt_version_list: { requests: [{ method: 'GET', path: '/api/prompts/{prompt_id}/versions/', query: ['page', 'page_size'] }] },
   prompt_version_update: { requests: [{ method: 'PATCH', path: '/api/prompts/{prompt_id}/versions/{version}/', body: ['messages', 'description', 'model', 'temperature', 'max_tokens', 'top_p', 'frequency_penalty', 'presence_penalty', 'stream', 'variables', 'fallback_models', 'load_balance_models', 'tools', 'tool_choice', 'response_format', 'reasoning_effort', 'seed', 'thinking', 'verbosity', 'json_schema', 'is_enforcing_response_format'] }], destructive: true },
-  provider_list: { requests: [{ method: 'GET', path: '/llm_models/providers/', query: ['page', 'page_size'] }] },
+  provider_list: { requests: [{ method: 'GET', path: '/api/global-providers/', query: ['page', 'page_size'] }] },
   provider_usage_list: { requests: [{ method: 'POST', path: '/clickhouse/dashboard/breakdown/', query: ['const:breakdown_by=provider_id', 'start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'environment', 'credential_type', 'include_all_metrics', 'sort_by', 'limit', 'is_workspace_level', 'workspace'], body: ['filters'] }], unsupportedFilters: BREAKDOWN_UNSUPPORTED_FILTERS },
   redteam_campaign_get: { requests: [{ method: 'GET', path: '/redteam/campaigns/{campaign_id}/' }] },
   redteam_campaign_list: { requests: [{ method: 'GET', path: '/redteam/campaigns/', query: ['page', 'page_size'] }] },
