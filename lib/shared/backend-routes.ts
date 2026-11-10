@@ -10,6 +10,8 @@ import type { BackendRoute } from './backend-route.js';
 // Resolved by the log list and summary views before ClickHouse; the project
 // comes from the credential.
 const BREAKDOWN_UNSUPPORTED_FILTERS = ['behaviors', 'topics', 'fault_domain', 'messages_smart', 'organization_id', 'unique_organization_id'];
+// A JWT caller's model rows also carry the dashboard's price columns; `pricing` is the price.
+const MODEL_PRICE_COLUMNS = ['input_cost', 'output_cost', 'input_price_unit', 'output_price_unit', 'cache_hit_input_cost', 'cache_creation_input_cost', 'image_output_cost', 'image_input_cost', 'audio_input_cost', 'audio_output_cost', 'cost_tiers', 'service_tier_prices', 'time_cost_schedule'];
 
 export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   annotation_item_get: { requests: [{ method: 'GET', path: '/api/annotation-items/{item_id}/' }] },
@@ -164,10 +166,7 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   metric_quantile_timeseries: { requests: [{ method: 'POST', path: '/clickhouse/dashboard/quantiles/', query: ['start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'time_tick', 'environment', 'is_workspace_level', 'workspace'], body: ['filters', 'metrics_to_aggregate'] }] },
   metric_summary: { requests: [{ method: 'POST', path: '/clickhouse/dashboard/llm-metrics/summary/', query: ['start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'environment', 'credential_type', 'fetch_filters', 'is_workspace_level', 'workspace'], body: ['filters'] }] },
   metric_timeseries: { requests: [{ method: 'POST', path: '/clickhouse/dashboard/llm-metrics/', query: ['start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'time_tick', 'environment', 'credential_type', 'fetch_filters', 'is_workspace_level', 'workspace'], body: ['filters'] }] },
-  model_create: { requests: [{ method: 'POST', path: '/api/models/', body: ['model_name', 'base_model_name', 'input_cost', 'output_cost', 'cache_hit_input_cost', 'cache_creation_input_cost', 'cost_tiers', 'time_cost_schedule', 'service_tier_prices', 'image_output_cost', 'image_input_cost', 'audio_input_cost', 'audio_output_cost', 'max_context_window', 'function_call', 'enforce_function_call', 'input_modalities', 'output_modalities', 'foundation_model_name', 'status', 'metadata', 'provider'] }], renames: { provider: 'custom_provider_id' } },
-  model_delete: { requests: [{ method: 'DELETE', path: '/api/models/{model}/' }], destructive: true },
-  model_list: { requests: [{ method: 'POST', path: '/api/models/list/', query: ['is_global_only', 'all', 'page', 'page_size', 'sort_by'], body: ['filters'] }] },
-  model_update: { requests: [{ method: 'PATCH', path: '/api/models/{model_name}/' }], destructive: true, spread: 'fields' },
+  model_list: { requests: [{ method: 'POST', path: '/api/models/list/', query: ['is_global_only', 'all', 'page', 'page_size', 'sort_by'], body: ['filters'] }], omit: MODEL_PRICE_COLUMNS },
   model_usage_list: { requests: [{ method: 'POST', path: '/clickhouse/dashboard/breakdown/', query: ['start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'environment', 'credential_type', 'sort_by', 'limit', 'include_all_metrics', 'const:breakdown_by=model', 'is_workspace_level', 'workspace'], body: ['filters'] }], unsupportedFilters: BREAKDOWN_UNSUPPORTED_FILTERS },
   monitor_commit: { requests: [{ method: 'POST', path: '/api/workflows/{monitor_id}/commits/', body: ['version_description'] }] },
   monitor_create: { requests: [{ method: 'POST', path: '/api/workflows/', body: ['name', 'tasks', 'description', 'trigger_event_type', 'schedule_cron', 'is_starred', 'polarity', 'const:type=monitors'] }] },
