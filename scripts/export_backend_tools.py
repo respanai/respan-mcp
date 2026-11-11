@@ -101,6 +101,9 @@ ADMIN_ONLY_ARGUMENTS = ("profile", "org")
 # server has it, so instructions to call it cannot be followed here.
 DANGLING_PATTERNS = (re.compile(r"\btool_search\b"),)
 
+# Prices are `pricing` out; no description names a price column.
+PRICE_COLUMN_EXAMPLES = re.compile(r", 'input_cost'(?=\))")
+
 
 def scrub(text):
     if not text:
@@ -112,6 +115,7 @@ def scrub(text):
         if not any(p.search(sentence) for p in INTERNAL_PATTERNS + DANGLING_PATTERNS)
     ]
     cleaned = " ".join(sentence.strip() for sentence in kept if sentence.strip())
+    cleaned = PRICE_COLUMN_EXAMPLES.sub("", cleaned)
     return re.sub(r"\s{2,}", " ", cleaned).strip()
 
 
