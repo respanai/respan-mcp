@@ -4893,7 +4893,7 @@
   },
   {
    "name": "foundation_model_list",
-   "description": "List model families (LLMFoundationModel rows): the identity the models page groups variants under. Each row carries `variant_summary` (variant counts, cheapest prices, capabilities, first release date). Families with no active variant are hidden unless `filters` carries a `status` condition, e.g. {\"status\": {\"operator\": \"in\", \"value\": [\"active\", \"deprecated\"]}} to list every family. Use model_list with `foundation_model_name` to see one family's variants.",
+   "description": "List model families (LLMFoundationModel rows): the identity the models page groups variants under. Each row carries `variant_summary` (variant counts, `headline_price` (the family's price now), capabilities, first release date). Families with no active variant are hidden unless `filters` carries a `status` condition, e.g. {\"status\": {\"operator\": \"in\", \"value\": [\"active\", \"deprecated\"]}} to list every family. Use model_list with `foundation_model_name` to see one family's variants.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -6824,7 +6824,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Raw filter body for /api/models/list/, sent as-is; the shorthand args above win on the same key. Format: {\"field\": {\"operator\": \"<op>\", \"value\": <val>}}. Operators: '' (exact), 'in', 'not', 'icontains', 'startswith', 'gt', 'gte', 'lt', 'lte', 'empty', 'not_empty'. Keys are LLMModel fields and lookups (e.g. 'status', 'is_managed', 'deprecated', 'respan_discount_rate', 'provider__respan_discount_rate', 'input_cost'), plus 'has_discount' (resolved customer discount > 0), 'available_to_user' and 'metadata__<key>' for metadata."
+      "description": "Raw filter body for /api/models/list/, sent as-is; the shorthand args above win on the same key. Format: {\"field\": {\"operator\": \"<op>\", \"value\": <val>}}. Operators: '' (exact), 'in', 'not', 'icontains', 'startswith', 'gt', 'gte', 'lt', 'lte', 'empty', 'not_empty'. Keys are LLMModel fields and lookups (e.g. 'status', 'is_managed', 'deprecated', 'respan_discount_rate', 'provider__respan_discount_rate'), plus 'has_discount' (resolved customer discount > 0), 'available_to_user' and 'metadata__<key>' for metadata."
      },
      "is_global_only": {
       "type": "boolean",
