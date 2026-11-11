@@ -12,7 +12,7 @@ import { rawFetch } from './client.js';
 import { BACKEND_TOOLS, registerBackendTool, type BackendToolContract } from './backend-tool.js';
 import { ADDITIVE_WRITE_TOOL, DESTRUCTIVE_TOOL } from './tool-policy.js';
 import { TOOL_ALIASES, resolveToolName } from './tool-aliases.js';
-import { READ_ONLY_WORKSPACE_TOOL } from './tool-result.js';
+import { READ_ONLY_WORKSPACE_TOOL, omitKeys } from './tool-result.js';
 
 export interface BackendRequest {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -42,6 +42,8 @@ export interface BackendRoute {
   slashed?: readonly string[];
   /** `filters` fields the endpoint cannot compile: it 500s or matches nothing, so they are refused. */
   unsupportedFilters?: readonly string[];
+  /** Response keys dropped at every depth: columns the backend serves only to the dashboard. */
+  omit?: readonly string[];
 }
 
 const PLACEHOLDER = /\{([a-z0-9_]+)\}/g;
@@ -198,9 +200,11 @@ export function registerRoutedTools(
 ): void {
   for (const [name, route] of Object.entries(routes)) {
     const shown = PUBLIC_TOOL_NAMES[name] ?? name;
-    registerBackendTool(server, client, shown, annotationsOf(name, route), (c, args) => {
+    const omitted = new Set(route.omit);
+    registerBackendTool(server, client, shown, annotationsOf(name, route), async (c, args) => {
       const { method, path, query, body } = buildRequest(route, args);
-      return rawFetch(c, path, { method, query, body });
+      const data = await rawFetch(c, path, { method, query, body });
+      return omitted.size ? omitKeys(data, omitted) : data;
     }, { ...routedContract(name, route, published), name: shown });
   }
 }
