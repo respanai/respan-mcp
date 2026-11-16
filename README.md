@@ -122,7 +122,7 @@ names and contracts (`<resource>_<action>`: `log_list`, `metric_summary`,
 names (`metrics_summary`, `org_switch`, `workspace_switch`, ...) stay callable
 through `lib/shared/tool-aliases.ts`.
 
-**Search and run.** `tools/list` shows ten everyday tools plus `tool_search` and
+**Search and run.** `tools/list` shows twelve everyday tools plus `tool_search` and
 `tool_run`. `tool_search` ranks every other tool by resource and action words
 (the backend admin MCP's ranking, with customer synonyms and stop words) and
 returns input schemas for the top three and a one-line summary for the rest;

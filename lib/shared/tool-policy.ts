@@ -25,7 +25,6 @@ export const ADDITIVE_WRITE_TOOL: ToolAnnotations = {
   idempotentHint: false,
   openWorldHint: false,
 };
-const WRITE = ADDITIVE_WRITE_TOOL;
 
 /** Deletes or overwrites data, or changes what runs in production. */
 export const DESTRUCTIVE_TOOL: ToolAnnotations = {
@@ -37,10 +36,6 @@ export const DESTRUCTIVE_TOOL: ToolAnnotations = {
 const DESTRUCTIVE = DESTRUCTIVE_TOOL;
 
 export const TOOL_ANNOTATIONS: Readonly<Record<string, ToolAnnotations>> = {
-  // Account
-  project_list: READ,
-  project_switch: WRITE,
-
   // Docs
   docs_search: READ_PUBLIC,
 }
