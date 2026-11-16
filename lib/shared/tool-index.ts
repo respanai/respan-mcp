@@ -31,6 +31,8 @@ export const EAGER_TOOL_NAMES: ReadonlySet<string> = new Set([
   'error_group_list',
   'behavior_summary',
   'prompt_list',
+  'project_list',
+  'project_switch',
 ]);
 
 /** Second-line groups: plain search skips them; include_folded=true searches them. */
