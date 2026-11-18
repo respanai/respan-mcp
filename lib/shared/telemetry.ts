@@ -125,6 +125,12 @@ export function authKindOf(bearer: string | undefined, hasEnvironmentKey: boolea
   return JWT_SHAPE.test(bearer) ? 'jwt' : 'api_key';
 }
 
+/** A signed-in user (OAuth or JWT) rather than an API key, which is bound to one project. */
+export function isUserCredential(bearer: string | undefined): boolean {
+  const kind = authKindOf(bearer, false);
+  return kind === 'oauth' || kind === 'jwt';
+}
+
 /** `hasEnvironmentKey` is false for a server that never uses RESPAN_API_KEY. */
 export function telemetryContext(
   realm: string,

@@ -10,7 +10,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { AuthenticatedClient } from "./client.js";
-import { requireClient } from "./client.js";
+import { inProject, requireClient } from "./client.js";
 import { INTERNAL_RESPONSE_KEYS, budgetedJson, omitKeys, textResult } from "./tool-result.js";
 import { toZodShape, type JsonSchema } from "../generated/schema-to-zod.js";
 import catalog from "../generated/backend-tools.json" with { type: "json" };
@@ -44,6 +44,11 @@ const SHARED_ARGUMENT_DESCRIPTIONS: Readonly<Record<string, string>> = {
   page: 'Page number, 1-based.',
   page_size: 'Rows per page.',
 };
+
+/** The argument that runs one call in another project (signed-in sessions only). */
+export const PROJECT_ARGUMENT = 'in_project';
+export const PROJECT_ARGUMENT_DESCRIPTION =
+  'Project UUID (project_id from project_list) to run this call in. Default: the active project.';
 
 /** The uncut contract of every registered tool, for tool_search `select:`. */
 export const FULL_CONTRACTS = new Map<string, Pick<BackendToolContract, 'description' | 'inputSchema'>>();
@@ -91,17 +96,22 @@ export function registerBackendTool(
     throw new Error(`registerBackendTool: '${name}' is not in lib/generated/backend-tools.json`);
   }
   FULL_CONTRACTS.set(name, { description: tool.description, inputSchema: tool.inputSchema });
+  const schema = compactSchema(tool.inputSchema) as JsonSchema;
+  const inputSchema = client?.isProjectSelectable
+    ? { ...schema, properties: { ...schema.properties, [PROJECT_ARGUMENT]: { type: 'string', description: PROJECT_ARGUMENT_DESCRIPTION } } }
+    : schema;
   server.registerTool(
     name,
     {
       title: toolTitle(name),
       description: compactText(tool.description, DESCRIPTION_MAX_CHARS),
-      inputSchema: toZodShape(compactSchema(tool.inputSchema) as JsonSchema),
+      inputSchema: toZodShape(inputSchema),
       annotations,
     },
     async (args: Record<string, unknown>) => {
-      const c = requireClient(client);
-      const data = await handler(c, (args ?? {}) as Record<string, any>);
+      const { [PROJECT_ARGUMENT]: projectId, ...toolArgs } = (args ?? {}) as Record<string, any>;
+      const c = inProject(requireClient(client), projectId);
+      const data = await handler(c, toolArgs);
       return textResult(budgetedJson(omitKeys(data, INTERNAL_RESPONSE_KEYS), BACKEND_TOOL_BUDGET));
     },
   );
