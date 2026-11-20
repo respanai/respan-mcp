@@ -122,7 +122,7 @@ names and contracts (`<resource>_<action>`: `log_list`, `metric_summary`,
 names (`metrics_summary`, `org_switch`, `workspace_switch`, ...) stay callable
 through `lib/shared/tool-aliases.ts`.
 
-**Search and run.** `tools/list` shows ten everyday tools plus `tool_search` and
+**Search and run.** `tools/list` shows twelve everyday tools plus `tool_search` and
 `tool_run`. `tool_search` ranks every other tool by resource and action words
 (the backend admin MCP's ranking, with customer synonyms and stop words) and
 returns input schemas for the top three and a one-line summary for the rest;
@@ -138,10 +138,12 @@ tools in `Respan-Enabled-Tools`, or set `RESPAN_MCP_LIST_ALL=1` (stdio).
 `lib/shared/backend-routes.ts`: the request its backend executor sends (method,
 path, query and body keys, fixed values). One executor builds that request and
 returns the server's answer; the server validates, defaults and shapes. A
-tool's schema lists only the arguments its route sends. Two rules keep it safe:
-no tool runs a Respan-chosen model (experiment and dataset eval runs send
-`is_scoring_behaviors=false`; simulation, red-team and suggestion tools are not
-served), and credential fields are stripped from every result.
+tool's schema lists only the arguments its route sends. Experiment, dataset
+version and dataset eval-run tools pass `is_scoring_behaviors` and
+`behavior_keys` through as the in-product agent does, so behavior scoring follows
+the backend's default unless the caller turns it off. Simulation, red-team and
+suggestion tools are not served, and credential fields are stripped from every
+result.
 
 **Read-only connections** (OAuth without "Also allow changes", or
 `/mcp/readonly`) see only tools annotated read-only; `tool_run` refuses the rest

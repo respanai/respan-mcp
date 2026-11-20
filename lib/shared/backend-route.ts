@@ -1,7 +1,7 @@
 // lib/shared/backend-route.ts
 //
 // A backend-catalog tool as data: the HTTP request its backend executor sends
-// (admin/mcp_server/*_tools.py in respan-backend). One generic executor turns
+// (utils/mcp/tools/*_tools.py in respan-backend). One generic executor turns
 // the arguments into that request and returns the response, so every routed
 // tool is a thin wrapper: the server validates, defaults and shapes.
 
@@ -12,7 +12,7 @@ import { rawFetch } from './client.js';
 import { BACKEND_TOOLS, registerBackendTool, type BackendToolContract } from './backend-tool.js';
 import { ADDITIVE_WRITE_TOOL, DESTRUCTIVE_TOOL } from './tool-policy.js';
 import { TOOL_ALIASES, resolveToolName } from './tool-aliases.js';
-import { READ_ONLY_WORKSPACE_TOOL, omitKeys } from './tool-result.js';
+import { READ_ONLY_WORKSPACE_TOOL, omitKeys, truncateStrings } from './tool-result.js';
 
 export interface BackendRequest {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -44,6 +44,8 @@ export interface BackendRoute {
   unsupportedFilters?: readonly string[];
   /** Response keys dropped at every depth: columns the backend serves only to the dashboard. */
   omit?: readonly string[];
+  /** An argument, never sent, that cuts every string of the response to that many characters. */
+  preview?: string;
 }
 
 const PLACEHOLDER = /\{([a-z0-9_]+)\}/g;
@@ -68,7 +70,7 @@ function jsonValue(text: string): unknown {
   try { return JSON.parse(text); } catch { return text; }
 }
 
-/** The argument keys a route sends anywhere; the rest never reach the server. */
+/** The argument keys a route reads; the rest never reach the server. */
 export function forwardedArgs(route: BackendRoute): Set<string> {
   const keys = new Set<string>();
   for (const request of route.requests) {
@@ -79,6 +81,7 @@ export function forwardedArgs(route: BackendRoute): Set<string> {
     if (request.when) keys.add(request.when);
   }
   if (route.spread) keys.add(route.spread);
+  if (route.preview) keys.add(route.preview);
   return keys;
 }
 
@@ -204,7 +207,9 @@ export function registerRoutedTools(
     registerBackendTool(server, client, shown, annotationsOf(name, route), async (c, args) => {
       const { method, path, query, body } = buildRequest(route, args);
       const data = await rawFetch(c, path, { method, query, body });
-      return omitted.size ? omitKeys(data, omitted) : data;
+      const kept = omitted.size ? omitKeys(data, omitted) : data;
+      const previewChars = route.preview ? args[route.preview] : undefined;
+      return typeof previewChars === 'number' && previewChars > 0 ? truncateStrings(kept, previewChars) : kept;
     }, { ...routedContract(name, route, published), name: shown });
   }
 }
