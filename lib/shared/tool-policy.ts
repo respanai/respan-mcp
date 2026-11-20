@@ -63,6 +63,29 @@ export function applyToolPolicy(server: McpServer): void {
   };
 }
 
+/**
+ * Copies each registered tool's title into `annotations.title`. Claude's
+ * connector directory reads the title from the annotations and flags a tool
+ * without one, while `registerTool` keeps it at the top level. A tool with no
+ * title at all gets one from its name, so `log_list` becomes "Log list". Call
+ * it after every tool is registered.
+ */
+export function addAnnotationTitles(server: McpServer): void {
+  // The SDK keeps registered tools by name and has no public way to list them.
+  const registered = (server as unknown as {
+    _registeredTools: Record<string, { title?: string; annotations?: ToolAnnotations }>;
+  })._registeredTools;
+  for (const [name, tool] of Object.entries(registered)) {
+    const title = tool.annotations?.title ?? tool.title ?? titleFromName(name);
+    tool.annotations = { ...tool.annotations, title };
+  }
+}
+
+function titleFromName(name: string): string {
+  const words = name.replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 const hiddenWriteTools = new WeakMap<McpServer, Set<string>>();
 
 /**

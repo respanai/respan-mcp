@@ -5,7 +5,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { createServer } from '../lib/shared/mcp-handler.js';
-import { registerDocTools } from '../lib/docs/tools.js';
+import { createDocsServer, registerDocTools } from '../lib/docs/tools.js';
 import { applyToolPolicy, TOOL_ANNOTATIONS, unannotatedTools } from '../lib/shared/tool-policy.js';
 import handleChallenge from '../api/well-known/openai-apps-challenge.js';
 
@@ -30,6 +30,18 @@ function docsServer(): McpServer {
 }
 
 describe('tool policy', () => {
+  it('puts a title in the annotations of every tool on /mcp, /mcp/docs and the default list', async () => {
+    const all = [...await listTools(createServer(null)), ...await listTools(createDocsServer())];
+    process.env.RESPAN_MCP_LIST_ALL = '';
+    const listed = await listTools(createServer(null, undefined, undefined, false, false));
+    process.env.RESPAN_MCP_LIST_ALL = '1';
+    expect(listed.map((tool) => tool.name)).toEqual(expect.arrayContaining(['tool_search', 'tool_run']));
+    for (const tool of [...all, ...listed]) {
+      expect(tool.annotations?.title, tool.name).toBeTruthy();
+      if (tool.title) expect(tool.annotations?.title, tool.name).toBe(tool.title);
+    }
+  });
+
   it('gives every tool on /mcp and /mcp/docs all three hints', async () => {
     const tools = [...await listTools(createServer(null)), ...await listTools(docsServer())];
     expect(tools.length).toBeGreaterThan(0);

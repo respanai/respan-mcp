@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { fetchDocEntries, searchDocs } from './search.js';
-import { applyToolPolicy } from '../shared/tool-policy.js';
+import { addAnnotationTitles, applyToolPolicy } from '../shared/tool-policy.js';
 import { applyToolCatalog } from '../shared/tool-catalog.js';
 import { instrumentToolCalls, type TelemetryContext } from '../shared/telemetry.js';
 
@@ -12,6 +12,7 @@ export function createDocsServer(telemetry?: TelemetryContext): McpServer {
   applyToolCatalog(server);
   if (telemetry) instrumentToolCalls(server, telemetry);
   registerDocTools(server);
+  addAnnotationTitles(server);
   return server;
 }
 

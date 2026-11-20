@@ -1,6 +1,6 @@
 {
   "mcp": {
-    "tools_list_chars": 20675,
+    "tools_list_chars": 20995,
     "tool_names": [
       "behavior_summary",
       "error_group_list",
@@ -20,12 +20,10 @@
     "untitled_tools": []
   },
   "docs": {
-    "tools_list_chars": 818,
+    "tools_list_chars": 840,
     "tool_names": [
       "docs_search"
     ],
-    "untitled_tools": [
-      "docs_search"
-    ]
+    "untitled_tools": []
   }
 }
