@@ -1,7 +1,7 @@
 // lib/shared/backend-routes.ts
 //
 // The request each backend executor of the same name sends
-// (admin/mcp_server/*_tools.py in respan-backend), as data for
+// (utils/mcp/tools/*_tools.py in respan-backend), as data for
 // registerRoutedTools. Fixed values the executor derives from the tool name
 // are `const:` entries.
 
@@ -65,7 +65,7 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   custom_behavior_update: { requests: [{ method: 'PATCH', path: '/api/pulses/behaviors/custom/{behavior_id}/', body: ['name', 'description', 'polarity'] }], destructive: true },
   dataset_create: { requests: [{ method: 'POST', path: '/api/datasets/', body: ['name', 'granularity', 'description', 'source_dataset_id', 'start_time', 'end_time', 'sampling', 'is_empty', 'initial_log_filters'] }] },
   dataset_delete: { requests: [{ method: 'DELETE', path: '/api/datasets/{dataset_id}/' }], destructive: true },
-  dataset_eval_run: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/evals/runs/', body: ['evaluator_workflow_ids', 'unique_ids', 'experiment_id', 'const:is_scoring_behaviors=false'] }] },
+  dataset_eval_run: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/evals/runs/', body: ['is_scoring_behaviors', 'behavior_keys', 'evaluator_workflow_ids', 'unique_ids', 'experiment_id'] }] },
   dataset_eval_run_history: { requests: [{ method: 'GET', path: '/api/datasets/{dataset_id}/evals/runs/' }] },
   dataset_get: { requests: [{ method: 'GET', path: '/api/datasets/{dataset_id}/' }] },
   dataset_list: { requests: [{ method: 'POST', path: '/api/datasets/list/', query: ['page', 'page_size', 'sort_by'], body: ['filters'] }] },
@@ -75,16 +75,19 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   dataset_log_delete: { requests: [{ method: 'DELETE', path: '/api/datasets/{dataset_id}/logs/{unique_id}/' }], destructive: true },
   dataset_log_get: { requests: [{ method: 'GET', path: '/api/datasets/{dataset_id}/logs/{unique_id}/' }] },
   dataset_log_import: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/logs/import/', body: ['start_time', 'end_time', 'filters', 'sampling_percentage'] }] },
-  dataset_log_list: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/logs/list/', query: ['page', 'page_size', 'sort_by'], body: ['filters'] }] },
+  dataset_log_list: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/logs/list/', query: ['page', 'page_size', 'sort_by', 'include_fields'], body: ['filters'] }], preview: 'preview_length' },
   dataset_log_summary: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/logs/summary/', body: ['filters'] }] },
   dataset_log_update: { requests: [{ method: 'PATCH', path: '/api/datasets/{dataset_id}/logs/{unique_id}/', body: ['input', 'output', 'expected_output', 'metadata', 'metrics', 'variables'] }] },
+  dataset_version_comparison_get: { requests: [{ method: 'GET', path: '/api/datasets/{dataset_id}/versions/comparison/', query: ['version_ids', 'baseline_version_id', 'page', 'page_size'] }] },
+  dataset_version_create: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/versions/', body: ['workflow', 'name', 'behavior_settings', 'sample_size'] }] },
+  dataset_version_list: { requests: [{ method: 'GET', path: '/api/datasets/{dataset_id}/versions/', query: ['page', 'page_size'] }] },
   dataset_update: { requests: [{ method: 'PATCH', path: '/api/datasets/{dataset_id}/', body: ['name', 'description', 'starred'] }] },
   deployment_usage_list: { requests: [{ method: 'POST', path: '/clickhouse/dashboard/breakdown/', query: ['const:breakdown_by=deployment_id', 'start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'environment', 'credential_type', 'include_all_metrics', 'sort_by', 'limit', 'is_workspace_level', 'workspace'], body: ['filters'] }], unsupportedFilters: BREAKDOWN_UNSUPPORTED_FILTERS },
   end_user_active_summary: { requests: [{ method: 'POST', path: '/clickhouse/dashboard/users/', query: ['start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'time_tick', 'environment', 'is_workspace_level', 'workspace'], body: ['filters'] }] },
   end_user_count: { requests: [{ method: 'POST', path: '/clickhouse/dashboard/total-users/', query: ['start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'environment', 'is_workspace_level', 'workspace'] }] },
   end_user_usage_list: { requests: [{ method: 'POST', path: '/clickhouse/dashboard/breakdown/', query: ['start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'environment', 'credential_type', 'sort_by', 'limit', 'include_all_metrics', 'const:breakdown_by=customer_identifier', 'is_workspace_level', 'workspace'], body: ['filters'] }], unsupportedFilters: BREAKDOWN_UNSUPPORTED_FILTERS },
   error_group_get: { requests: [{ method: 'POST', path: '/api/pulses/errors/{fingerprint}/', query: ['is_workspace_level', 'workspace'], body: ['start_time', 'end_time', 'environment', 'limit', 'unique_organization_id'] }] },
-  error_group_list: { requests: [{ method: 'POST', path: '/api/pulses/errors/', query: ['is_workspace_level', 'workspace'], body: ['start_time', 'end_time', 'environment', 'error_class', 'provider', 'status', 'fault_domain', 'filters'] }] },
+  error_group_list: { requests: [{ method: 'POST', path: '/api/pulses/errors/', query: ['is_workspace_level', 'workspace'], body: ['start_time', 'end_time', 'environment', 'error_code', 'provider', 'status', 'fault_domain', 'filters'] }] },
   eval_result_summary: { requests: [{ method: 'POST', path: '/clickhouse/dashboard/eval-results/summary/', query: ['start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'environment', 'source', 'scope', 'is_workspace_level', 'workspace'] }] },
   eval_result_timeseries: { requests: [{ method: 'POST', path: '/clickhouse/dashboard/eval-results/', query: ['start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'time_tick', 'environment', 'source', 'scope', 'is_workspace_level', 'workspace'] }] },
   evaluator_commit: { requests: [{ method: 'POST', path: '/api/workflows/{evaluator_id}/commits/', body: ['version_description'] }] },
@@ -100,7 +103,7 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   evaluator_run_timeseries: { requests: [{ method: 'GET', path: '/clickhouse/workflows/{evaluator_id}/runs/summary', query: ['start_time', 'end_time', 'summary_type', 'date', 'timezone_offset', 'time_tick', 'version_id'] }] },
   evaluator_undeploy: { requests: [{ method: 'DELETE', path: '/api/workflows/{evaluator_id}/deployments/' }], destructive: true },
   evaluator_version_list: { requests: [{ method: 'GET', path: '/api/workflows/{evaluator_id}/versions/', query: ['page', 'page_size', 'sort_by'] }] },
-  experiment_create: { requests: [{ method: 'POST', path: '/api/v2/experiments/', body: ['dataset_id', 'workflow', 'evaluator_workflow_ids', 'name', 'description', 'batch_size', 'concurrency', 'enable_tracing', 'storage_location', 'generation_method', 'span_workflow_name', 'const:is_scoring_behaviors=false'] }] },
+  experiment_create: { requests: [{ method: 'POST', path: '/api/v2/experiments/', body: ['dataset_id', 'workflow', 'evaluator_workflow_ids', 'name', 'description', 'batch_size', 'concurrency', 'enable_tracing', 'storage_location', 'generation_method', 'span_workflow_name', 'is_scoring_behaviors', 'behavior_keys'] }] },
   experiment_delete: { requests: [{ method: 'DELETE', path: '/api/v2/experiments/{experiment_id}/' }], destructive: true },
   experiment_get: { requests: [{ method: 'GET', path: '/api/v2/experiments/{experiment_id}/' }] },
   experiment_histogram: { requests: [{ method: 'GET', path: '/api/v2/experiments/{experiment_id}/histogram/', query: ['evaluator_id', 'bins'] }] },
@@ -110,8 +113,8 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   experiment_log_summary: { requests: [{ method: 'POST', path: '/api/v2/experiments/{experiment_id}/logs/summary/', query: ['start_time', 'end_time'], body: ['filters'] }] },
   experiment_row_list: { requests: [{ method: 'GET', path: '/api/v2/experiments/{experiment_id}/rows/', query: ['limit'] }] },
   experiment_run: { requests: [{ method: 'POST', path: '/api/v2/experiments/{experiment_id}/runs/', body: ['batch_size', 'concurrency', 'enable_tracing'] }] },
-  experiment_update: { requests: [{ method: 'PATCH', path: '/api/v2/experiments/{experiment_id}/', body: ['dataset_id', 'workflow', 'evaluator_workflow_ids', 'name', 'description', 'batch_size', 'concurrency', 'enable_tracing', 'storage_location', 'generation_method', 'span_workflow_name', 'evaluator_slugs', 'is_starred'] }], renames: { dataset_id: 'dataset' } },
-  experiment_validate: { requests: [{ method: 'POST', path: '/api/v2/experiments/validations/', body: ['dataset_id', 'workflow', 'evaluator_workflow_ids', 'name', 'description', 'batch_size', 'concurrency', 'enable_tracing', 'storage_location', 'generation_method', 'span_workflow_name', 'evaluator_slugs', 'sample_size', 'const:is_scoring_behaviors=false'] }] },
+  experiment_update: { requests: [{ method: 'PATCH', path: '/api/v2/experiments/{experiment_id}/', body: ['dataset_id', 'workflow', 'evaluator_workflow_ids', 'name', 'description', 'batch_size', 'concurrency', 'enable_tracing', 'storage_location', 'generation_method', 'span_workflow_name', 'evaluator_slugs', 'is_starred', 'is_scoring_behaviors', 'behavior_keys'] }], renames: { dataset_id: 'dataset' } },
+  experiment_validate: { requests: [{ method: 'POST', path: '/api/v2/experiments/validations/', body: ['dataset_id', 'workflow', 'evaluator_workflow_ids', 'name', 'description', 'batch_size', 'concurrency', 'enable_tracing', 'storage_location', 'generation_method', 'span_workflow_name', 'evaluator_slugs', 'sample_size', 'is_scoring_behaviors', 'behavior_keys'] }] },
   export_job_cancel: { requests: [{ method: 'PATCH', path: '/api/export-jobs/{export_job_id}/', body: ['const:status=cancelled'] }], destructive: true },
   export_job_chunk_list: { requests: [{ method: 'GET', path: '/api/export-jobs/{export_job_id}/chunks' }] },
   export_job_create: { requests: [{ method: 'POST', path: '/api/export-jobs/', body: ['name', 'list_type', 'export_format', 'query_params', 'post_params'] }] },

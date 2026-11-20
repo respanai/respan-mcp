@@ -2,7 +2,7 @@
 """Export the backend's customer tool catalog to lib/generated/backend-tools.json.
 
 The in-product agent's tools are defined in respan-backend
-(admin/mcp_server/*, exposed to customers through
+(utils/mcp/tools/*, exposed to customers through
 utils.mcp.tool_bridge.register_tools). This copies each tool's name,
 description and input schema verbatim, so the tools this server implements on
 top of them describe themselves exactly as the agent's do. Only the contract
@@ -36,7 +36,7 @@ _exceptions = types.ModuleType("utils.exceptions")
 _exceptions.extract_http_error_detail = lambda *args, **kwargs: ""
 sys.modules["utils.exceptions"] = _exceptions
 
-from admin.mcp_server import TOOLS as ADMIN_TOOLS, core  # noqa: E402
+from utils.mcp.tools.core import TOOL_ACTIVITY_PARAM_KEY  # noqa: E402
 from utils.mcp.tool_bridge import (  # noqa: E402
     AGENT_READ_ONLY_TOOLS,
     AGENT_SAFE_DOMAINS,
@@ -49,7 +49,7 @@ if "--out" in sys.argv:
 
 # The agent-only activity label: it drives an in-product UI affordance and is
 # never sent upstream.
-ACTIVITY = core.TOOL_ACTIVITY_PARAM_KEY
+ACTIVITY = TOOL_ACTIVITY_PARAM_KEY
 
 # Descriptions are written for an internal registry. This repository and the
 # endpoint it serves are public, so sentences naming internal paths or
@@ -59,9 +59,10 @@ INTERNAL_PATTERNS = (
     re.compile(r"superadmin", re.IGNORECASE),
     re.compile(r"\bstaff[- _]only\b", re.IGNORECASE),
 )
-# Admin tools the agent bridge withholds whose views still scope a customer to
-# their own project or workspace (membership and role checked server-side).
-# name -> read-only.
+# Tools of the deleted admin MCP server (respan-backend #14375) whose views
+# still scope a customer to their own project or workspace (membership and role
+# checked server-side). Their definitions no longer exist in the backend, so the
+# previous export's entries are carried forward verbatim. name -> read-only.
 ADMIN_CUSTOMER_TOOLS = {
     "workspace_get": True,
     "workspace_list": True,
@@ -92,11 +93,6 @@ ADMIN_CUSTOMER_TOOLS = {
     "behavior_guardrail_settings_update": False,
     "behavior_verdict_update": False,
 }
-# These name their target project in the request: the admin `org` argument is
-# published under the product term.
-PROJECT_ARGUMENT_TOOLS = ("join_request_list", "join_request_approve", "join_request_deny")
-ADMIN_ONLY_ARGUMENTS = ("profile", "org")
-
 # The agent loads tools on demand through tool_search; no client of this
 # server has it, so instructions to call it cannot be followed here.
 DANGLING_PATTERNS = (re.compile(r"\btool_search\b"),)
@@ -147,25 +143,18 @@ for tool in sorted(tools, key=lambda t: t["function"]["name"]):
         }
     )
 
-for tool in ADMIN_TOOLS:
-    if tool.name not in ADMIN_CUSTOMER_TOOLS:
-        continue
-    schema = json.loads(json.dumps(tool.inputSchema))
-    properties = schema.get("properties", {})
-    if tool.name in PROJECT_ARGUMENT_TOOLS and "org" in properties:
-        properties["project"] = properties.pop("org")
-        schema["required"] = ["project" if key == "org" else key for key in schema.get("required", [])]
-    for key in (ACTIVITY, *ADMIN_ONLY_ARGUMENTS):
-        properties.pop(key, None)
-    schema["required"] = [key for key in schema.get("required", []) if key in properties]
-    exported.append(
-        {
-            "name": tool.name,
-            "description": scrub(tool.description),
-            "inputSchema": scrub_schema(schema),
-            "readOnly": ADMIN_CUSTOMER_TOOLS[tool.name],
-        }
-    )
+registered = {tool["name"] for tool in exported}
+try:
+    with open(OUT_PATH) as handle:
+        previous = {tool["name"]: tool for tool in json.load(handle)["tools"]}
+except FileNotFoundError:
+    previous = {}
+missing = sorted(name for name in ADMIN_CUSTOMER_TOOLS if name not in registered and name not in previous)
+if missing:
+    raise SystemExit("refusing to export, no previous entry to carry forward: " + ", ".join(missing))
+for name, read_only in ADMIN_CUSTOMER_TOOLS.items():
+    if name not in registered:
+        exported.append({**previous[name], "readOnly": read_only})
 exported.sort(key=lambda tool: tool["name"])
 
 blob = json.dumps({"tools": exported}, indent=1, ensure_ascii=False)
