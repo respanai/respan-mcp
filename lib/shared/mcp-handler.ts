@@ -5,6 +5,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { RespanClient } from '@respan/respan-api';
 import type { AuthenticatedClient } from './client.js';
 import {
+  addAnnotationTitles,
   applyToolPolicy,
   hiddenWriteToolsOf,
   removeWriteTools,
@@ -68,6 +69,8 @@ export function createServer(
   if (isReadOnly) removeWriteTools(server);
   // A caller that names its tools gets exactly those, listed.
   applyToolIndex(server, isListingAll || Boolean(enabledTools?.size));
+  // Last, so it also covers tool_search and tool_run from applyToolIndex.
+  addAnnotationTitles(server);
   return server;
 }
 
