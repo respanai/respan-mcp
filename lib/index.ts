@@ -4,10 +4,13 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { resolveAuthFromEnv, createClient } from "./shared/client.js";
 import { createServer } from "./shared/mcp-handler.js";
 import { rewriteToolCallNames } from "./shared/tool-aliases.js";
+import { isUserCredential } from "./shared/telemetry.js";
 
 async function main() {
   const auth = resolveAuthFromEnv();
-  const client = auth ? createClient(auth, auth.baseUrl) : null;
+  const client = auth
+    ? { ...createClient(auth, auth.baseUrl), isProjectSelectable: isUserCredential(auth.token) }
+    : null;
 
   if (!auth) {
     console.error("No credentials found. Set RESPAN_API_KEY or run `respan login` to authenticate.");

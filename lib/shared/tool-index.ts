@@ -13,7 +13,7 @@ import { ListToolsRequestSchema, type Tool } from '@modelcontextprotocol/sdk/typ
 import { z } from 'zod';
 import { resolveToolName } from './tool-aliases.js';
 import { hiddenWriteToolsOf } from './tool-policy.js';
-import { FULL_CONTRACTS, compactText } from './backend-tool.js';
+import { FULL_CONTRACTS, PROJECT_ARGUMENT, compactText } from './backend-tool.js';
 import { READ_ONLY_WORKSPACE_TOOL } from './tool-result.js';
 
 export const TOOL_SEARCH_NAME = 'tool_search';
@@ -212,6 +212,18 @@ function jsonResult(value: unknown, isError = false) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(value) }], ...(isError ? { isError: true } : {}) };
 }
 
+/** The uncut contract, keeping the project argument this session's schema carries. */
+function fullContract(name: string, listed: Pick<Tool, 'description' | 'inputSchema'>) {
+  const full = FULL_CONTRACTS.get(name);
+  if (!full) return listed;
+  const projectArgument = listed.inputSchema.properties?.[PROJECT_ARGUMENT];
+  if (!projectArgument) return full;
+  return {
+    ...full,
+    inputSchema: { ...full.inputSchema, properties: { ...full.inputSchema.properties, [PROJECT_ARGUMENT]: projectArgument } },
+  };
+}
+
 /**
  * Adds tool_search and tool_run, and narrows tools/list to the eager tools
  * unless `listAll`. Call it after every tool is registered and after
@@ -250,7 +262,7 @@ export function applyToolIndex(server: McpServer, listAll: boolean): void {
     const found = searchTools(pool, args.keywords);
     return jsonResult({
       tools: found.map(({ name, description, inputSchema, annotations }, index) => {
-        if (isSelect) return { name, ...(FULL_CONTRACTS.get(name) ?? { description, inputSchema }), annotations };
+        if (isSelect) return { name, ...fullContract(name, { description, inputSchema }), annotations };
         return index < FULL_SCHEMA_RESULTS
           ? { name, description, inputSchema, readOnly: annotations?.readOnlyHint === true }
           : { name, summary: summarize(description) };

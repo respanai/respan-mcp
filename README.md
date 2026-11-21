@@ -118,7 +118,11 @@ names and contracts (`<resource>_<action>`: `log_list`, `metric_summary`,
 `project_list`, `project_switch`, `log_filter_schema_get` and
 `behavior_disabled_set`. Workspaces (the tier above projects) are read with
 `workspace_list`, `workspace_get`, `workspace_project_list` and
-`workspace_member_list` (OAuth sessions). A project was once called an organization; old tool
+`workspace_member_list` (OAuth sessions). A signed-in session (OAuth or
+`respan login`) can also run any single call in another project by passing
+`in_project` (a `project_id` from `project_list`); nothing outside that call
+changes, unlike `project_switch`, which moves the whole account. An API key is
+bound to its one project and has no such argument. A project was once called an organization; old tool
 names (`metrics_summary`, `org_switch`, `workspace_switch`, ...) stay callable
 through `lib/shared/tool-aliases.ts`.
 

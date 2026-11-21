@@ -148,9 +148,10 @@ export function registerProjectTools(
       title: "List projects",
       description: `List the projects your account can act as, and show which one is active.
 
-Every other tool reads and writes the ACTIVE project only. If results look
-empty or belong to the wrong team, call this first to confirm which project
-is active, then use project_switch.
+Every other tool reads and writes the ACTIVE project unless the call names
+another one: pass a project_id from this list as in_project to run that one
+call there, leaving the active project as it is. If results look empty or
+belong to the wrong team, call this first to confirm which project is active.
 
 RESPONSE FIELDS:
 - team_id: Identifier used by project_switch (null if you are not a member)
@@ -184,6 +185,9 @@ RESPONSE FIELDS:
 Accepts a project name, a project_id UUID, or a team_id — run
 project_list first to see the options. Names are matched
 case-insensitively, and an ambiguous name is rejected rather than guessed.
+
+To read or write another project for a call or two, pass in_project to that
+tool instead: it changes nothing outside the call.
 
 IMPORTANT — this changes the active project for your whole account, not
 just this conversation. The Respan web app will show the newly selected

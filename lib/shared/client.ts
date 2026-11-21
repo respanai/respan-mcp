@@ -15,6 +15,19 @@ export interface AuthenticatedClient {
   // Used by rawFetch when set, so the hosted handler can see a backend 401 on
   // raw calls too and send the OAuth client back through login.
   fetch?: typeof fetch;
+  // A signed-in user (OAuth or JWT) can name the project a call runs in; an API
+  // key is bound to one project and the backend ignores the header for it.
+  isProjectSelectable?: boolean;
+  /** Runs this client's calls in this project instead of the account's active one. */
+  projectId?: string;
+}
+
+/** The backend scopes one request to the named project, without switching the user. */
+export const PROJECT_ID_HEADER = 'X-Respan-Project-Id';
+
+/** `client` with its calls run in `projectId`, when one is given. */
+export function inProject(client: AuthenticatedClient, projectId: unknown): AuthenticatedClient {
+  return typeof projectId === 'string' && projectId ? { ...client, projectId } : client;
 }
 
 const DEFAULT_BASE_URL = 'https://api.respan.ai';
@@ -56,6 +69,7 @@ export async function rawFetch(
     headers: {
       'Content-Type': 'application/json',
       Authorization: client.auth,
+      ...(client.projectId ? { [PROJECT_ID_HEADER]: client.projectId } : {}),
     },
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });

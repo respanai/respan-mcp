@@ -16,6 +16,7 @@ import { applyToolIndex, isListingAllTools } from './tool-index.js';
 import { resolveToolName, rewriteToolCallNames } from './tool-aliases.js';
 import {
   instrumentToolCalls,
+  isUserCredential,
   noteAliasedCalls,
   recordRequest,
   telemetryContext,
@@ -310,6 +311,7 @@ export function createMcpHandler(
         auth: `Bearer ${backendCredential}`,
         baseUrl,
         ...(oauthAccess ? { fetch: trackedFetch } : {}),
+        isProjectSelectable: isUserCredential(bearer),
       };
       const enabledToolsHeader = req.headers['respan-enabled-tools'] as string | undefined;
       const enabledTools = enabledToolsHeader

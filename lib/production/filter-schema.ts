@@ -8,7 +8,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { AuthenticatedClient } from "../shared/client.js";
-import { rawFetch, requireClient } from "../shared/client.js";
+import { inProject, rawFetch, requireClient } from "../shared/client.js";
+import { PROJECT_ARGUMENT, PROJECT_ARGUMENT_DESCRIPTION } from "../shared/backend-tool.js";
 import { READ_ONLY_WORKSPACE_TOOL, textResult } from "../shared/tool-result.js";
 
 const FILTER_SCHEMA_PATH = "/api/request-logs/filter-schema/";
@@ -118,11 +119,12 @@ Call it when unsure of a field or value, or for vague asks like "slow" or "expen
 Listed values can be partial: value_count is the total, metadata values are a sample, and metadata_filters_omitted counts unlisted keys. An unlisted value may still exist; 'metadata__<key>' works for any key. measurements.is_measured is false while a project or environment is first measured: filter from the descriptions now and call again later, not in a loop.`,
       inputSchema: {
         environment: z.string().optional().describe("Measure values and percentiles in this environment only. Pass the environment the following log_list or log_summary call will use. Default: all environments."),
+        ...(client?.isProjectSelectable ? { [PROJECT_ARGUMENT]: z.string().optional().describe(PROJECT_ARGUMENT_DESCRIPTION) } : {}),
       },
       annotations: READ_ONLY_WORKSPACE_TOOL,
     },
-    async (args) => {
-      const c = requireClient(client);
+    async (args: { environment?: string; [PROJECT_ARGUMENT]?: string }) => {
+      const c = inProject(requireClient(client), args[PROJECT_ARGUMENT]);
       let result: unknown;
       try {
         result = await rawFetch(c, FILTER_SCHEMA_PATH, {
