@@ -1,7 +1,8 @@
 // lib/shared/tool-aliases.ts
 //
 // Tools carry the backend's names. Old names in tools/call, tool_run and
-// Respan-Enabled-Tools are translated at the transport boundary.
+// Respan-Enabled-Tools are translated at the transport boundary, and so are
+// old argument names (ARGUMENT_ALIASES).
 
 /** Old tool name → current tool name. */
 export const TOOL_ALIASES: Readonly<Record<string, string>> = {
@@ -62,14 +63,48 @@ export const TOOL_ALIASES: Readonly<Record<string, string>> = {
   prompt_versions_list: "prompt_version_list",
 };
 
+/**
+ * Old argument names, per tool → the public id name that replaced them. One
+ * name per id: `span_id` (one LLM call or step), `trace_id`, `session_id`.
+ * Deprecated: kept so saved prompts keep working, and logged when used.
+ */
+export const ARGUMENT_ALIASES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  log_get: { unique_id: "span_id" },
+  log_score_list: { log_id: "span_id" },
+  score_create: { log_id: "span_id" },
+  thread_get: { thread_identifier: "session_id" },
+};
+
+/** The deprecated argument names `args` uses for `tool` (a current name). */
+export function deprecatedArguments(tool: string, args: unknown): string[] {
+  const aliases = ARGUMENT_ALIASES[tool];
+  if (!aliases || !args || typeof args !== "object") return [];
+  return Object.keys(aliases).filter((old) => old in (args as Record<string, unknown>));
+}
+
+/**
+ * Moves each deprecated argument of `args` to its public name, unless the
+ * caller also sent the public name, which wins. Returns the old names moved.
+ */
+export function rewriteArguments(tool: string, args: Record<string, unknown>): string[] {
+  const moved = deprecatedArguments(tool, args);
+  for (const old of moved) {
+    const current = ARGUMENT_ALIASES[tool][old];
+    if (args[current] === undefined) args[current] = args[old];
+    delete args[old];
+  }
+  return moved;
+}
+
 /** The current name for `name`, which may be an old one. */
 export function resolveToolName(name: string): string {
   return TOOL_ALIASES[name] ?? name;
 }
 
 /**
- * Rewrites old tool names in a JSON-RPC request body (one message or a batch)
- * so `tools/call` reaches the renamed tool. Returns the old names it rewrote.
+ * Rewrites old tool and argument names in a JSON-RPC request body (one message
+ * or a batch) so `tools/call` reaches the renamed tool with its current
+ * arguments. Returns the old tool names it rewrote.
  */
 export function rewriteToolCallNames(body: unknown): string[] {
   const rewritten: string[] = [];
@@ -83,6 +118,8 @@ export function rewriteToolCallNames(body: unknown): string[] {
       rewritten.push(params.name);
       params.name = current;
     }
+    const args = (params as { arguments?: unknown }).arguments;
+    if (args && typeof args === "object") rewriteArguments(current, args as Record<string, unknown>);
   }
   return rewritten;
 }

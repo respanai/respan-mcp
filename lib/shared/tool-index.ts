@@ -11,7 +11,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ListToolsRequestSchema, type Tool } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { resolveToolName } from './tool-aliases.js';
+import { resolveToolName, rewriteArguments } from './tool-aliases.js';
 import { hiddenWriteToolsOf } from './tool-policy.js';
 import { FULL_CONTRACTS, compactText } from './backend-tool.js';
 import { READ_ONLY_WORKSPACE_TOOL } from './tool-result.js';
@@ -289,8 +289,10 @@ export function applyToolIndex(server: McpServer, listAll: boolean): void {
         hint: READ_ONLY_TOOL_RUN_HINT,
       } }, true);
     }
+    const toolArgs = { ...(args.arguments ?? {}) };
+    rewriteArguments(name, toolArgs);
     // A copy of extra: telemetry keys its per-call record by this object.
-    return callTool({ method: 'tools/call', params: { name, arguments: args.arguments ?? {} } }, { ...extra });
+    return callTool({ method: 'tools/call', params: { name, arguments: toolArgs } }, { ...extra });
   });
 
   if (listAll) return;

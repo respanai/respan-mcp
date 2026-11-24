@@ -16,7 +16,7 @@
 import { createHash } from 'node:crypto';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { resolveToolName } from './tool-aliases.js';
+import { deprecatedArguments, resolveToolName } from './tool-aliases.js';
 import { TOOL_CATEGORY_META_KEY } from './tool-catalog.js';
 
 export const TOOL_CALL_EVENT = 'mcp.tool_call';
@@ -53,6 +53,8 @@ export interface TelemetryContext {
   protocolVersion?: string;
   /** JSON-RPC id → the old tool name a tools/call used; see noteAliasedCalls. */
   aliasedCalls?: Map<unknown, string>;
+  /** JSON-RPC id → the deprecated argument names a tools/call used. */
+  deprecatedArgumentCalls?: Map<unknown, string[]>;
 }
 
 interface ToolCallFields {
@@ -67,6 +69,8 @@ interface ToolCallFields {
   latency_ms?: number;
   result_chars?: number;
   arg_keys?: string[];
+  /** Deprecated argument names the client sent (ARGUMENT_ALIASES). */
+  deprecated_args?: string[];
   http_status?: number;
   error_class?: string;
 }
@@ -142,8 +146,8 @@ export function telemetryContext(
 }
 
 /**
- * Notes which tools/call messages in a request body use an old tool name,
- * keyed by JSON-RPC id. Call it just before rewriteToolCallNames, which
+ * Notes which tools/call messages in a request body use an old tool name or
+ * deprecated argument names, keyed by JSON-RPC id. Call it just before rewriteToolCallNames, which
  * replaces those names, so each tool_call event can say an alias was used.
  */
 export function noteAliasedCalls(ctx: TelemetryContext, body: unknown): void {
@@ -151,6 +155,11 @@ export function noteAliasedCalls(ctx: TelemetryContext, body: unknown): void {
   for (const message of messages) {
     const { method, id, params } = (message ?? {}) as { method?: unknown; id?: unknown; params?: { name?: unknown } };
     if (method !== 'tools/call' || typeof params?.name !== 'string') continue;
+    const deprecated = deprecatedArguments(resolveToolName(params.name), (params as { arguments?: unknown }).arguments);
+    if (deprecated.length) {
+      ctx.deprecatedArgumentCalls ??= new Map();
+      ctx.deprecatedArgumentCalls.set(id, deprecated);
+    }
     if (resolveToolName(params.name) === params.name) continue;
     ctx.aliasedCalls ??= new Map();
     ctx.aliasedCalls.set(id, params.name);
@@ -272,6 +281,7 @@ export function instrumentToolCalls(server: McpServer, ctx: TelemetryContext): v
       callRecords.set(extra, record);
       const name = String(request?.params?.name ?? '');
       const alias = ctx.aliasedCalls?.get(extra?.requestId);
+      const deprecatedArgs = ctx.deprecatedArgumentCalls?.get(extra?.requestId);
       const log = (fields: Partial<ToolCallFields>) => {
         if (emitted >= MAX_TOOL_CALL_EVENTS_PER_SERVER) return;
         emitted += 1;
@@ -282,6 +292,7 @@ export function instrumentToolCalls(server: McpServer, ctx: TelemetryContext): v
           alias: bounded(alias),
           latency_ms: Math.round(performance.now() - started),
           arg_keys: argKeysOf(request?.params?.arguments),
+          deprecated_args: deprecatedArgs,
           ...fields,
         });
       };

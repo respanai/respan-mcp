@@ -6602,7 +6602,7 @@
   },
   {
    "name": "log_get",
-   "description": "Get a single log by unique_id. Returns the FULL untruncated log — use this after log_list to see complete content. RETURNS: prompt_messages (full conversation), completion_message (full response), full_request, full_response, model, cost, latency, tokens_per_second, time_to_first_token, prompt_tokens, completion_tokens, temperature, max_tokens, top_p, frequency_penalty, presence_penalty, tool_calls, tools, metadata, scores (per-evaluator), annotation_status, customer_identifier, error_message, status, environment. TIP: Pass storage_object_key and timestamp from log_list results for faster retrieval (skips database scan, goes directly to S3).",
+   "description": "Get a single span (log) by span_id, the `unique_id` of a log_list row. Returns the FULL untruncated span — use this after log_list to see complete content. RETURNS: prompt_messages (full conversation), completion_message (full response), full_request, full_response, model, cost, latency, tokens_per_second, time_to_first_token, prompt_tokens, completion_tokens, temperature, max_tokens, top_p, frequency_penalty, presence_penalty, tool_calls, tools, metadata, scores (per-evaluator), annotation_status, customer_identifier, error_message, status, environment. TIP: Pass storage_object_key and timestamp from log_list results for faster retrieval (skips database scan, goes directly to S3).",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -6614,9 +6614,9 @@
       "type": "string",
       "description": "Workspace UUID (`unique_company_organization_id`), read with `is_workspace_level=true`."
      },
-     "unique_id": {
+     "span_id": {
       "type": "string",
-      "description": "Log unique ID"
+      "description": "Span id, the `unique_id` of a log_list row: one LLM call or step. It is `span_unique_id` in trace_get's span_tree."
      },
      "storage_object_key": {
       "type": "string",
@@ -6636,14 +6636,14 @@
      }
     },
     "required": [
-     "unique_id"
+     "span_id"
     ]
    },
    "readOnly": true
   },
   {
    "name": "log_list",
-   "description": "List individual log entries (PAGINATED). Use for: browsing specific log entries, finding logs by filter criteria, or getting unique_id values for log_get follow-up. For counting or aggregate stats (total requests, total cost, 'how many logs with latency > 5s'), use log_summary instead. RETURNS the server's log rows; narrow them with include_fields. Use log_get with unique_id for the full prompt_messages and completion_message. Filter Format: {\"field\": {\"operator\": \"<op>\", \"value\": <val>}}. Operators: '' (exact), 'in', 'not', 'icontains', 'startswith', 'gt', 'gte', 'lt', 'lte', 'empty', 'not_empty'. UI display names ('Generation', 'Speed', 'TTFT') are accepted as filter aliases of latency, tokens_per_second and time_to_first_token. String fields: model, status, customer_identifier, provider_id, prompt_id, prompt_name, log_type, deployment_name, span_name, span_workflow_name. Numeric fields (support gte/lte/gt/lt): latency (seconds — also called 'Generation' in the UI), cost (USD), time_to_first_token (seconds — 'TTFT' in the UI), tokens_per_second ('Speed' in the UI), prompt_tokens (int), completion_tokens (int), total_request_tokens (int), status_code (int). Full-text search fields: system_text_vector ('Messages' in the UI) and completion_text_vector ('Assistant message' in the UI) search the log's input and output text. Use operator '' with the search term as value. Example: {\"system_text_vector\": {\"operator\": \"\", \"value\": \"timeout\"}} finds logs whose input or output contains 'timeout'. Single-word terms match whole words only (token match); multi-word or punctuated terms fall back to substring match and are much slower — prefer a single distinctive word. Custom metadata fields: Users can attach arbitrary key-value metadata to logs. To filter by a metadata key, use the 'metadata__' prefix (double underscore). If a field name is NOT in the built-in string/numeric fields above, it is a custom metadata key — always prefix with 'metadata__'. Example: {\"metadata__agent_name\": {\"operator\": \"\", \"value\": \"router\"}} filters logs where metadata.agent_name equals 'router'. Metadata operators (lowercase): '', 'not', 'in', 'not_in', 'lt', 'lte', 'gt', 'gte', 'contains', 'not_contains', 'icontains', 'startswith', 'not_startswith', 'endswith', 'not_endswith' ('' is exact). Anything else, including uppercase 'IN' / 'NOT IN' and '!=', is rejected with a 400.",
+   "description": "List individual log entries (PAGINATED). Use for: browsing specific log entries, finding logs by filter criteria, or getting span ids (`unique_id`) for log_get follow-up. For counting or aggregate stats (total requests, total cost, 'how many logs with latency > 5s'), use log_summary instead. RETURNS the server's log rows; narrow them with include_fields. Each row is one span: `unique_id` is its span_id, `trace_unique_id` its trace_id, `session_identifier` its session_id. Use log_get with span_id for the full prompt_messages and completion_message. Filter Format: {\"field\": {\"operator\": \"<op>\", \"value\": <val>}}. Operators: '' (exact), 'in', 'not', 'icontains', 'startswith', 'gt', 'gte', 'lt', 'lte', 'empty', 'not_empty'. UI display names ('Generation', 'Speed', 'TTFT') are accepted as filter aliases of latency, tokens_per_second and time_to_first_token. String fields: model, status, customer_identifier, provider_id, prompt_id, prompt_name, log_type, deployment_name, span_name, span_workflow_name. Id fields: span_id, trace_id, session_id, parent_span_id. Numeric fields (support gte/lte/gt/lt): latency (seconds — also called 'Generation' in the UI), cost (USD), time_to_first_token (seconds — 'TTFT' in the UI), tokens_per_second ('Speed' in the UI), prompt_tokens (int), completion_tokens (int), total_request_tokens (int), status_code (int). Full-text search fields: system_text_vector ('Messages' in the UI) and completion_text_vector ('Assistant message' in the UI) search the log's input and output text. Use operator '' with the search term as value. Example: {\"system_text_vector\": {\"operator\": \"\", \"value\": \"timeout\"}} finds logs whose input or output contains 'timeout'. Single-word terms match whole words only (token match); multi-word or punctuated terms fall back to substring match and are much slower — prefer a single distinctive word. Custom metadata fields: Users can attach arbitrary key-value metadata to logs. To filter by a metadata key, use the 'metadata__' prefix (double underscore). If a field name is NOT in the built-in string/numeric fields above, it is a custom metadata key — always prefix with 'metadata__'. Example: {\"metadata__agent_name\": {\"operator\": \"\", \"value\": \"router\"}} filters logs where metadata.agent_name equals 'router'. Metadata operators (lowercase): '', 'not', 'in', 'not_in', 'lt', 'lte', 'gt', 'gte', 'contains', 'not_contains', 'icontains', 'startswith', 'not_startswith', 'endswith', 'not_endswith' ('' is exact). Anything else, including uppercase 'IN' / 'NOT IN' and '!=', is rejected with a 400.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -6735,13 +6735,13 @@
   },
   {
    "name": "log_score_list",
-   "description": "List all scores attached to a specific log entry by its unique_id. Returns score values, evaluator names, and timestamps for that log.",
+   "description": "List all scores attached to one span by its span_id. Returns score values, evaluator names, and timestamps for that span.",
    "inputSchema": {
     "type": "object",
     "properties": {
-     "log_id": {
+     "span_id": {
       "type": "string",
-      "description": "Log unique_id"
+      "description": "Span id, the `unique_id` of a log_list row: one LLM call or step. It is `span_unique_id` in trace_get's span_tree."
      },
      "page": {
       "type": "integer",
@@ -6753,7 +6753,7 @@
      }
     },
     "required": [
-     "log_id"
+     "span_id"
     ]
    },
    "readOnly": true
@@ -10627,13 +10627,13 @@
   },
   {
    "name": "score_create",
-   "description": "Create a new score for a log entry. Requires log_id (the log's unique_id) and evaluator_id (the evaluator ID, not its slug); send the value in the typed field the evaluator uses (numerical_value, boolean_value, string_value or categorical_value).",
+   "description": "Create a new score for a span. Requires span_id (the `unique_id` of a log_list row) and evaluator_id (the evaluator ID, not its slug); send the value in the typed field the evaluator uses (numerical_value, boolean_value, string_value or categorical_value).",
    "inputSchema": {
     "type": "object",
     "properties": {
-     "log_id": {
+     "span_id": {
       "type": "string",
-      "description": "Log unique_id to attach the score to"
+      "description": "Span id, the `unique_id` of a log_list row: one LLM call or step. It is `span_unique_id` in trace_get's span_tree."
      },
      "evaluator_id": {
       "type": "string",
@@ -10664,7 +10664,7 @@
      }
     },
     "required": [
-     "log_id",
+     "span_id",
      "evaluator_id"
     ]
    },
@@ -10706,7 +10706,7 @@
   },
   {
    "name": "score_list",
-   "description": "List evaluation scores (PAGINATED). Each score: evaluator_id, score value (numerical/boolean/string), log_id, created_at. Filter by evaluator_id / eval_set_id or any score field via `filters`. Response includes 'count' = total matches. Filter Format: {\"field\": {\"operator\": \"<op>\", \"value\": <val>}}. Operators: '' (exact), 'in', 'not', 'icontains', 'startswith', 'gt', 'gte', 'lt', 'lte', 'empty', 'not_empty'.",
+   "description": "List evaluation scores (PAGINATED). Each score: evaluator_id, score value (numerical/boolean/string), log_id (the span_id it scores), created_at. Filter by evaluator_id / eval_set_id or any score field via `filters`. Response includes 'count' = total matches. Filter Format: {\"field\": {\"operator\": \"<op>\", \"value\": <val>}}. Operators: '' (exact), 'in', 'not', 'icontains', 'startswith', 'gt', 'gte', 'lt', 'lte', 'empty', 'not_empty'.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -11602,7 +11602,7 @@
   },
   {
    "name": "thread_get",
-   "description": "Get a single thread by `thread_identifier`. Returns the full thread with aggregated metrics (cost, tokens, log count, avg latency). RETURNS: thread_identifier, thread_unique_id, log_count, cost, tokens, prompt_tokens, completion_tokens, latency, time_to_first_token, tokens_per_second, environment, timestamp, input, output, prompt, completion, system. To list the individual logs inside a thread, use log_list with filters: {\"thread_identifier\": {\"operator\": \"\", \"value\": \"<id>\"}}",
+   "description": "Get a single session (thread) by session_id, the `session_identifier` of a thread_list row. Returns the full session with aggregated metrics (cost, tokens, log count, avg latency). RETURNS: thread_identifier, thread_unique_id, log_count, cost, tokens, prompt_tokens, completion_tokens, latency, time_to_first_token, tokens_per_second, environment, timestamp, input, output, prompt, completion, system. To list the individual logs inside a thread, use log_list with filters: {\"session_id\": {\"operator\": \"\", \"value\": \"<id>\"}}",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -11614,9 +11614,9 @@
       "type": "string",
       "description": "Workspace UUID (`unique_company_organization_id`), read with `is_workspace_level=true`."
      },
-     "thread_identifier": {
+     "session_id": {
       "type": "string",
-      "description": "The thread identifier — the value the customer SDK supplied (or the system generated) to group logs into one conversation."
+      "description": "Session id, the `session_identifier` of a thread_list or log_list row. A session is one conversation (also called a thread), with all its traces."
      },
      "timestamp": {
       "type": "string",
@@ -11634,14 +11634,14 @@
      }
     },
     "required": [
-     "thread_identifier"
+     "session_id"
     ]
    },
    "readOnly": true
   },
   {
    "name": "thread_list",
-   "description": "List conversation threads (PAGINATED). A thread groups all logs sharing the same `thread_identifier` value. Use for: browsing recent threads, finding thread_identifier values for thread_get follow-up, or filtering threads by cost/log_count. For counting or aggregate stats across threads (total threads, total cost across all threads), use thread_summary instead. RETURNS per entry: thread_identifier, thread_unique_id, log_count, cost (USD), tokens, prompt_tokens, completion_tokens, latency, time_to_first_token, tokens_per_second, environment, timestamp, input, output, prompt, completion, system. Filter Format: {\"field\": {\"operator\": \"<op>\", \"value\": <val>}}. Operators: '' (exact), 'in', 'not', 'icontains', 'startswith', 'gt', 'gte', 'lt', 'lte', 'empty', 'not_empty'. Filterable fields: thread_identifier, customer_identifier, number_of_requests (numeric), total_cost (numeric), total_tokens (numeric), environment. Default time window if start_time omitted: last 1 hour. For 'today' / 'right now' / 'currently' use last 24 hours rolling.",
+   "description": "List sessions, also called threads (PAGINATED). A session is one conversation: every trace sharing one session_id, returned as `session_identifier` (also `thread_identifier`). Use for: browsing recent sessions, finding session_id values for thread_get follow-up, or filtering threads by cost/log_count. For counting or aggregate stats across threads (total threads, total cost across all threads), use thread_summary instead. RETURNS per entry: thread_identifier, thread_unique_id, log_count, cost (USD), tokens, prompt_tokens, completion_tokens, latency, time_to_first_token, tokens_per_second, environment, timestamp, input, output, prompt, completion, system. Filter Format: {\"field\": {\"operator\": \"<op>\", \"value\": <val>}}. Operators: '' (exact), 'in', 'not', 'icontains', 'startswith', 'gt', 'gte', 'lt', 'lte', 'empty', 'not_empty'. Filterable fields: session_id, customer_identifier, number_of_requests (numeric), total_cost (numeric), total_tokens (numeric), environment. Default time window if start_time omitted: last 1 hour. For 'today' / 'right now' / 'currently' use last 24 hours rolling.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -11735,7 +11735,7 @@
   },
   {
    "name": "trace_get",
-   "description": "Get a single trace by trace_unique_id. Returns the full trace with a nested span_tree of all child spans. RETURNS: all trace_list fields plus span_tree — a recursive tree where each span includes: span_unique_id, span_name, span_parent_id, model, latency, cost, prompt_tokens, completion_tokens, tokens_per_second, time_to_first_token, input, output, status, status_code, metadata, and nested children spans. Use after trace_list to drill into a specific trace's execution flow.",
+   "description": "Get a single trace by trace_id, the `trace_unique_id` of a trace_list or log_list row. Returns the full trace with a nested span_tree of all child spans. RETURNS: all trace_list fields plus span_tree — a recursive tree where each span includes: span_unique_id, span_name, span_parent_id, model, latency, cost, prompt_tokens, completion_tokens, tokens_per_second, time_to_first_token, input, output, status, status_code, metadata, and nested children spans. Use after trace_list to drill into a specific trace's execution flow.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -11749,7 +11749,7 @@
      },
      "trace_id": {
       "type": "string",
-      "description": "Trace unique ID"
+      "description": "Trace id, the `trace_unique_id` of a trace_list or log_list row. A trace is one request end to end, with all its spans."
      }
     },
     "required": [
