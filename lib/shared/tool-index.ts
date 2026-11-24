@@ -18,6 +18,12 @@ import { READ_ONLY_WORKSPACE_TOOL } from './tool-result.js';
 
 export const TOOL_SEARCH_NAME = 'tool_search';
 export const TOOL_RUN_NAME = 'tool_run';
+/**
+ * tool_run's refusal of a write on a read-only connection. tool_run cannot tell
+ * a /readonly URL from a read-only sign-in, so the hint covers both.
+ */
+export const READ_ONLY_TOOL_RUN_HINT = 'To change data, the user must connect to the Respan server URL without /readonly, '
+  + 'with an API key that can write or a new sign-in that ticks "Also allow changes". Read-only tools keep working here.';
 
 /** Listed at connect besides tool_search and tool_run. */
 export const EAGER_TOOL_NAMES: ReadonlySet<string> = new Set([
@@ -277,7 +283,11 @@ export function applyToolIndex(server: McpServer, listAll: boolean): void {
       return jsonResult({ error: { code: 'invalid_tool', message: `Call ${name} directly, not through tool_run.` } }, true);
     }
     if (hidden.has(name)) {
-      return jsonResult({ error: { code: 'insufficient_scope', message: `${name} changes data, and this connection is read-only.` } }, true);
+      return jsonResult({ error: {
+        code: 'insufficient_scope',
+        message: `${name} changes data, and this connection is read-only.`,
+        hint: READ_ONLY_TOOL_RUN_HINT,
+      } }, true);
     }
     // A copy of extra: telemetry keys its per-call record by this object.
     return callTool({ method: 'tools/call', params: { name, arguments: args.arguments ?? {} } }, { ...extra });
