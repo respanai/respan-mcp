@@ -78,6 +78,7 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   dataset_log_import: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/logs/import/', body: ['start_time', 'end_time', 'filters', 'sampling_percentage'] }] },
   dataset_log_list: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/logs/list/', query: ['page', 'page_size', 'sort_by', 'include_fields'], body: ['filters'] }], preview: 'preview_length' },
   dataset_log_summary: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/logs/summary/', body: ['filters'] }] },
+  dataset_log_verdict_update: { requests: [{ method: 'PATCH', path: '/api/datasets/{dataset_id}/logs/{unique_id}/behaviors/{behavior_key}/', body: ['prob'] }] },
   dataset_log_update: { requests: [{ method: 'PATCH', path: '/api/datasets/{dataset_id}/logs/{unique_id}/', body: ['input', 'output', 'expected_output', 'metadata', 'metrics', 'variables'] }] },
   dataset_version_cancel: { requests: [{ method: 'PATCH', path: '/api/datasets/{dataset_id}/run/', body: ['const:status=cancelled'] }], destructive: true },
   dataset_version_comparison_get: { requests: [{ method: 'GET', path: '/api/datasets/{dataset_id}/versions/comparison/', query: ['version_ids', 'baseline_version_id', 'row_filter', 'sort', 'page', 'page_size'] }], summaryOnly: 'is_summary_only' },
