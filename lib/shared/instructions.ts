@@ -16,7 +16,7 @@ export const SERVER_INSTRUCTIONS = `Respan is an LLM observability platform. The
 
 Only everyday tools are listed. Find others with tool_search (resource and action words, e.g. 'dataset log create', 'cost by model'), then call them with tool_run(name, arguments). 'select:name' returns a tool's full description and schema; listed descriptions are shortened. Folded groups are searched when named, or with include_folded=true: ${FOLDED_GROUP_NAMES}. A project holds the data; a workspace is the tier above it (plan, billing, members); workspace tools need OAuth sign-in.
 
-Where to start in each area: traffic and cost, metric_summary; quality, behavior_summary and error_group_list; conversations, thread_list; prompts, prompt_list; datasets and evals, dataset_list and evaluator_list; alerts, monitor_list; keys and provider credentials, api_key_list and integration_list; spend and rate limits, limit_policy_list.
+Where to start in each area: traffic and cost, metric_summary, then model_usage_list by model; quality, behavior_summary and error_group_list; conversations, thread_list; prompts, prompt_list; datasets and evals, dataset_list and evaluator_list; alerts, monitor_list; keys and provider credentials, api_key_list and integration_list; spend and rate limits, limit_policy_list.
 
 For traffic questions go totals, then rows, then one record: metric_summary or log_summary, then log_list or trace_list, then log_get or trace_get, with the same start_time and end_time.
 

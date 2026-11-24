@@ -122,7 +122,8 @@ names and contracts (`<resource>_<action>`: `log_list`, `metric_summary`,
 names (`metrics_summary`, `org_switch`, `workspace_switch`, ...) stay callable
 through `lib/shared/tool-aliases.ts`.
 
-**Naming and description rules** (every new or changed tool; fix them in the
+**Naming and description rules** (every new or renamed tool; existing names
+such as `experiment_run` stay until their area renames them with an alias; fix them in the
 backend's tool definitions, never in `lib/generated/backend-tools.json`):
 
 - Name: `<resource>_<verb>`, one verb per meaning: `list` (rows), `get` (one
