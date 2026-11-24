@@ -179,7 +179,7 @@
   },
   {
    "name": "ab_test_summary",
-   "description": "An A/B test's results, side by side. sides: one entry per side (`primary`, then each variant by name) with its model, sessions, calls, cost_usd, avg_latency_seconds (per call), total_tokens and average_final_score (null when no behaviors score it). spent_usd is what counts toward budget_usd. Also the test's state (running, paused or ended), live_sampling_stop_reason, skipped_sessions and failure_causes. A shadow test's sides come from its sessions dataset (primary: what users got; variant: the replays of the same sessions); a split test's from its live calls by metadata.ab_test_side. Reads only.",
+   "description": "An A/B test's results, side by side. sides: one entry per side (`primary`, then each variant by name) with its model, sessions, calls, cost_usd, avg_latency_seconds (per call), total_tokens and average_final_score (null when no behaviors score it). spent_usd is what counts toward budget_usd. Also the test's state (running, paused or ended), live_sampling_stop_reason, skipped_sessions and failure_causes. A shadow test's sides come from its sessions dataset (primary: what users got; variant: the replays of the same sessions); a split test's from its live calls by metadata.ab_test_side (calls, cost and spend over the whole test; a split side's sessions over its last 31 days). Reads only.",
    "inputSchema": {
     "type": "object",
     "properties": {
