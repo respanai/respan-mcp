@@ -20,7 +20,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import authorizationServerMetadata from '../api/well-known/oauth-authorization-server.js';
 import protectedResourceMetadata from '../api/well-known/oauth-protected-resource.js';
 
-import { TOOL_RUN_NAME } from '../lib/shared/tool-index.js';
+import { READ_ONLY_TOOL_RUN_HINT, TOOL_RUN_NAME } from '../lib/shared/tool-index.js';
 
 // These tests cover the whole tool surface, not only the tools listed by default.
 process.env.RESPAN_MCP_LIST_ALL = '1';
@@ -433,7 +433,9 @@ describe('the read-only gate covers the whole tool surface', () => {
     for (const name of [...writes, ...aliases]) {
       const response = new MockResponse();
       await handler(rpc(token, 'tools/call', { name: TOOL_RUN_NAME, arguments: { name, arguments: {} } }), response as any);
-      expect(JSON.parse(rpcResult(response).result.content[0].text).error.code, name).toBe('insufficient_scope');
+      const error = JSON.parse(rpcResult(response).result.content[0].text).error;
+      expect(error.code, name).toBe('insufficient_scope');
+      expect(error.hint, name).toBe(READ_ONLY_TOOL_RUN_HINT);
     }
     expect(fetchSpy).not.toHaveBeenCalled();
   }, SURFACE_LOOP_TIMEOUT_MS);

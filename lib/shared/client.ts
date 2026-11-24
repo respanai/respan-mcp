@@ -33,9 +33,40 @@ export function isUnauthorized(error: unknown): boolean {
   return error instanceof Error && /^401\b/.test(error.message);
 }
 
+/** What the agent can do about a failed backend call, by HTTP status. */
+export const NEXT_STEP_BY_STATUS: Readonly<Record<number, string>> = {
+  400: 'Fix the arguments the error names and call again. tool_search with "select:<tool name>" returns the full input schema.',
+  401: 'Respan did not accept the credential. With OAuth, sign in again. With an API key, check it under Settings > API keys; if other tools work with the same key, this tool needs an OAuth sign-in instead.',
+  403: 'The credential cannot do this. Check that the API key is valid, not expired and allowed to make this change (Settings > API keys), or that the signed-in user has the role it needs.',
+  404: 'Nothing with that id exists in the current project. Get a valid id from the matching *_list tool. Ids from another project are not visible here; with OAuth, project_list shows your other projects.',
+  409: 'This conflicts with the current state, such as a duplicate name or a concurrent change. Read the current record with its *_get tool, then call again.',
+  429: 'Rate limited. Wait, then call again once. Summary tools and smaller pages need fewer calls.',
+};
+/** Starts the line rawFetch appends to an error message. */
+export const NEXT_STEP_PREFIX = '\nNext step: ';
+const NEXT_STEP_SERVER_ERROR = 'Respan failed on its side. Call again once; if it fails again, narrow the time range or page size, and report the time of the call to Respan support.';
+
+/** `message` without the next step rawFetch appended, for callers that explain the error themselves. */
+export function withoutNextStep(message: string): string {
+  const index = message.indexOf(NEXT_STEP_PREFIX);
+  return index === -1 ? message : message.slice(0, index);
+}
+
+/** The next step for a failed call, or undefined for statuses with none. */
+export function nextStepFor(status: number, retryAfter?: string | null): string | undefined {
+  if (status >= 500) return NEXT_STEP_SERVER_ERROR;
+  const step = NEXT_STEP_BY_STATUS[status];
+  // Retry-After may also be an HTTP date; only seconds read as a wait.
+  if (status === 429 && step && retryAfter && /^\d+$/.test(retryAfter.trim())) {
+    return `${step} Retry after ${retryAfter.trim()} seconds.`;
+  }
+  return step;
+}
+
 /**
  * Raw fetch helper for endpoints not yet in the SDK.
- * Throws on non-2xx with the response body included.
+ * Throws on non-2xx with the response body included, then a line saying
+ * what to do next. The message keeps its leading status (isUnauthorized).
  */
 export async function rawFetch(
   client: AuthenticatedClient,
@@ -63,8 +94,10 @@ export async function rawFetch(
   let parsed: unknown;
   try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
   if (!res.ok) {
+    const step = nextStepFor(res.status, res.headers.get('retry-after'));
+    const detail = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
     throw Object.assign(
-      new Error(`${res.status} ${res.statusText}: ${typeof parsed === 'string' ? parsed : JSON.stringify(parsed)}`),
+      new Error(`${res.status} ${res.statusText}: ${detail}${step ? `${NEXT_STEP_PREFIX}${step}` : ''}`),
       { status: res.status },
     );
   }
