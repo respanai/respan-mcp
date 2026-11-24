@@ -113,6 +113,15 @@ describe('tool aliases', () => {
     expect(buildRequest(BACKEND_ROUTES.thread_get, { session_id: 'chat 1' }).path).toBe('/clickhouse/threads/chat%201/');
   });
 
+  it('sends log_summary\'s old polarity-counts argument under its is_including_ name', () => {
+    const args: Record<string, unknown> = { start_time: 's', end_time: 'e', behavior_polarity_counts: true };
+    expect(rewriteArguments('log_summary', args)).toEqual(['behavior_polarity_counts']);
+    expect(args).toEqual({ start_time: 's', end_time: 'e', is_including_behavior_polarity_counts: true });
+    const { body } = buildRequest(BACKEND_ROUTES.log_summary, args);
+    expect(body).toMatchObject({ is_including_behavior_polarity_counts: true });
+    expect(body).not.toHaveProperty('behavior_polarity_counts');
+  });
+
   it('points every deprecated argument at a public name the tool takes', () => {
     for (const [tool, aliases] of Object.entries(ARGUMENT_ALIASES)) {
       const properties = BACKEND_TOOLS.get(tool)?.inputSchema.properties ?? {};

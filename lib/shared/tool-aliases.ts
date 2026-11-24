@@ -64,12 +64,14 @@ export const TOOL_ALIASES: Readonly<Record<string, string>> = {
 };
 
 /**
- * Old argument names, per tool → the public id name that replaced them. One
- * name per id: `span_id` (one LLM call or step), `trace_id`, `session_id`.
+ * Old argument names, per tool → the public name that replaced them. One
+ * name per id: `span_id` (one LLM call or step), `trace_id`, `session_id`;
+ * booleans take `is_` (`is_including_behavior_polarity_counts`).
  * Deprecated: kept so saved prompts keep working, and logged when used.
  */
 export const ARGUMENT_ALIASES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   log_get: { unique_id: "span_id" },
+  log_summary: { behavior_polarity_counts: "is_including_behavior_polarity_counts" },
   log_score_list: { log_id: "span_id" },
   score_create: { log_id: "span_id" },
   thread_get: { thread_identifier: "session_id" },
