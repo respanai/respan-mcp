@@ -103,6 +103,10 @@ const WORKFLOW_LIST_TOOLS = Object.entries(BACKEND_ROUTES).filter(([, route]) =>
   route.requests.some((request) => request.path === '/api/workflows/list/'));
 
 describe('workflow lists', () => {
+  it('finds the four workflow list routes', () => {
+    expect(WORKFLOW_LIST_TOOLS.map(([name]) => name).sort()).toEqual(['automation_list', 'evaluator_list', 'monitor_list', 'report_list']);
+  });
+
   it.each(WORKFLOW_LIST_TOOLS)('%s pins one real workflow type', (name, route) => {
     const { query } = buildRequest(route, {});
     expect(WORKFLOW_TYPES).toContain(query.type);
