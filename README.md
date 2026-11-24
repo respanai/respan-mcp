@@ -155,10 +155,10 @@ tools in `Respan-Enabled-Tools`, or set `RESPAN_MCP_LIST_ALL=1` (stdio).
 `lib/shared/backend-routes.ts`: the request its backend executor sends (method,
 path, query and body keys, fixed values). One executor builds that request and
 returns the server's answer; the server validates, defaults and shapes. A
-tool's schema lists only the arguments its route sends. Experiment, dataset
-version and dataset eval-run tools pass `is_scoring_behaviors` and
-`behavior_keys` through as the in-product agent does, so behavior scoring follows
-the backend's default unless the caller turns it off. Red-team tools only read;
+tool's schema lists only the arguments its route sends. `dataset_eval_run`
+passes `is_scoring_behaviors` and `behavior_keys` through as the in-product
+agent does, so behavior scoring follows the backend's default unless the caller
+turns it off; a dataset version is scored by its `behavior_settings`. Red-team tools only read;
 simulation tools read runs and manage datasets and scenarios. Neither can start
 a run, suggestion tools are not served, and credential fields are stripped
 from every result.
