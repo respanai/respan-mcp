@@ -8,7 +8,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { AuthenticatedClient } from "../shared/client.js";
-import { rawFetch, requireClient } from "../shared/client.js";
+import { rawFetch, requireClient, withoutNextStep } from "../shared/client.js";
 import { READ_ONLY_WORKSPACE_TOOL, textResult } from "../shared/tool-result.js";
 
 const FILTER_SCHEMA_PATH = "/api/request-logs/filter-schema/";
@@ -133,7 +133,7 @@ Listed values can be partial: value_count is the total, metadata values are a sa
         // Backends without the endpoint route it to the log detail view, which
         // answers a 404 naming a log called "filter-schema".
         if (error instanceof Error && error.message.startsWith(NOT_FOUND_PREFIX)) {
-          return { isError: true as const, content: [{ type: "text" as const, text: NOT_SERVED_MESSAGE + error.message }] };
+          return { isError: true as const, content: [{ type: "text" as const, text: NOT_SERVED_MESSAGE + withoutNextStep(error.message) }] };
         }
         throw error;
       }

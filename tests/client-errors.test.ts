@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NEXT_STEP_BY_STATUS, isUnauthorized, nextStepFor, rawFetch } from '../lib/shared/client.js';
+import { NEXT_STEP_BY_STATUS, isUnauthorized, nextStepFor, rawFetch, withoutNextStep } from '../lib/shared/client.js';
 
 function clientAnswering(status: number, body: string, headers: Record<string, string> = {}) {
   return {
@@ -41,5 +41,18 @@ describe('backend errors say what to do next', () => {
 
   it('adds no step to a status it has none for', async () => {
     expect((await errorOf(418)).message).not.toContain('Next step');
+  });
+});
+
+describe('withoutNextStep', () => {
+  it('drops the appended step and keeps the backend error', async () => {
+    const error = await errorOf(404);
+    expect(withoutNextStep(error.message)).toBe('404 Status: {"detail":"nope"}');
+    expect(withoutNextStep('plain message')).toBe('plain message');
+  });
+
+  it('ignores a Retry-After that is a date', async () => {
+    const error = await errorOf(429, '{"detail":"slow down"}', { 'Retry-After': 'Wed, 21 Oct 2026 07:28:00 GMT' });
+    expect(error.message).not.toContain('Retry after');
   });
 });
