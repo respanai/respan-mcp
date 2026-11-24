@@ -74,7 +74,7 @@ async function shadowSides(client: AuthenticatedClient, test: Json) {
  * another test served), the sessions summary for how many sessions.
  */
 async function splitSides(client: AuthenticatedClient, test: Json, sampling: Json) {
-  const variants: Json[] = sampling.variants ?? [{ name: DEFAULT_VARIANT, model: test.run_config?.model ?? null }];
+  const variants: Json[] = sampling.variants?.length ? sampling.variants : [{ name: DEFAULT_VARIANT, model: test.run_config?.model ?? null }];
   const query = { start_time: String(test.created_at), end_time: new Date(Date.now() + WINDOW_END_SLACK_MS).toISOString() };
   const named: Array<[string, string | null]> = [[SIDE_PRIMARY, null], ...variants.map((v): [string, string | null] => [v.name, v.model ?? null])];
   const sides = await Promise.all(named.map(async ([side, model]): Promise<Side> => {

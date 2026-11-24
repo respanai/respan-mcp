@@ -162,6 +162,8 @@ describe('ab_test tools', () => {
       expect(data.sides.map((s: any) => s.side)).toEqual(['primary', 'nano', 'haiku']);
       expect(data.sides.map((s: any) => s.model)).toEqual([null, 'gpt-4.1-nano', 'claude-haiku-4-5']);
       expect(data.sides.every((s: any) => s.sessions === 4 && s.calls === 8)).toBe(true);
+      expect(data.sides.map((s: any) => s.cost_usd)).toEqual([0.1, 0.2, 0.3]);
+      expect(data.spent_usd).toBeCloseTo(0.5);
     } finally { await client.close(); }
   });
 
@@ -172,6 +174,19 @@ describe('ab_test tools', () => {
       await client.callTool({ name: 'ab_test_update', arguments: { ab_test_id: 'ab1', live_sampling: { budget_usd: 5 } } });
       expect(call(0)).toEqual({ method: 'PATCH', path: '/api/datasets/ab1/run/', query: {}, body: { status: 'paused' } });
       expect(call(1)).toEqual({ method: 'PATCH', path: '/api/datasets/ab1/', query: {}, body: { live_sampling: { budget_usd: 5 } } });
+    } finally { await client.close(); }
+  });
+
+  it('ab_test_update takes exactly one change per call', async () => {
+    const { client, fetch } = await fixture();
+    try {
+      const both = await client.callTool({ name: 'ab_test_update', arguments: { ab_test_id: 'ab1', status: 'paused', live_sampling: { budget_usd: 5 } } });
+      const neither = await client.callTool({ name: 'ab_test_update', arguments: { ab_test_id: 'ab1' } });
+      expect(both.isError).toBe(true);
+      expect(text(both)).toContain('only one of: status, live_sampling');
+      expect(neither.isError).toBe(true);
+      expect(text(neither)).toContain('one of: status, live_sampling');
+      expect(fetch).not.toHaveBeenCalled();
     } finally { await client.close(); }
   });
 

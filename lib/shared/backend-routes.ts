@@ -20,7 +20,7 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   // Ends the test for good; a split test's users all go back to the primary.
   ab_test_stop: { requests: [{ method: 'PATCH', path: '/api/datasets/{ab_test_id}/run/', body: ['const:status=cancelled'] }], destructive: true },
   // status (pause, resume) or live_sampling (a later end, a higher budget): one per call.
-  ab_test_update: { requests: [{ method: 'PATCH', path: '/api/datasets/{ab_test_id}/run/', body: ['status'], when: 'status' }, { method: 'PATCH', path: '/api/datasets/{ab_test_id}/', body: ['live_sampling'] }] },
+  ab_test_update: { requests: [{ method: 'PATCH', path: '/api/datasets/{ab_test_id}/run/', body: ['status'], when: 'status' }, { method: 'PATCH', path: '/api/datasets/{ab_test_id}/', body: ['live_sampling'], when: 'live_sampling' }], oneWhen: true },
   annotation_item_get: { requests: [{ method: 'GET', path: '/api/annotation-items/{item_id}/' }] },
   annotation_item_list: { requests: [{ method: 'POST', path: '/api/annotation-items/list/', query: ['page', 'page_size', 'sort_by'], body: ['filters'] }] },
   annotation_item_update: { requests: [{ method: 'PATCH', path: '/api/annotation-items/{item_id}/', body: ['status', 'completed_at', 'assignee_id'] }] },
