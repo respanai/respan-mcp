@@ -122,6 +122,23 @@ names and contracts (`<resource>_<action>`: `log_list`, `metric_summary`,
 names (`metrics_summary`, `org_switch`, `workspace_switch`, ...) stay callable
 through `lib/shared/tool-aliases.ts`.
 
+**Naming and description rules** (every new or renamed tool; existing names
+such as `experiment_run` stay until their area renames them with an alias; fix them in the
+backend's tool definitions, never in `lib/generated/backend-tools.json`):
+
+- Name: `<resource>_<verb>`, one verb per meaning: `list` (rows), `get` (one
+  record), `create`, `update`, `delete`, `summary` (totals), `timeseries`
+  (time buckets). Runs of something are `<resource>_run_*`. A project is
+  `project_*`, the tier above it `workspace_*`; never `org_*` in new names.
+- Description: what the tool does, when to use it instead of its neighbours
+  (`evaluator_*` is the user-facing evaluator, `grader_*` its building blocks),
+  and what it returns.
+- `readOnly` is true only for tools that change nothing. Read-only connections
+  list only those. A tool that saves nothing but spends model calls stays a
+  write.
+- A rename keeps the old name in `tool-aliases.ts`, so saved prompts keep
+  working.
+
 **Search and run.** `tools/list` shows twelve everyday tools plus `tool_search` and
 `tool_run`. `tool_search` ranks every other tool by resource and action words
 (the backend admin MCP's ranking, with customer synonyms and stop words) and
@@ -141,9 +158,10 @@ returns the server's answer; the server validates, defaults and shapes. A
 tool's schema lists only the arguments its route sends. Experiment, dataset
 version and dataset eval-run tools pass `is_scoring_behaviors` and
 `behavior_keys` through as the in-product agent does, so behavior scoring follows
-the backend's default unless the caller turns it off. Simulation, red-team and
-suggestion tools are not served, and credential fields are stripped from every
-result.
+the backend's default unless the caller turns it off. Red-team tools only read;
+simulation tools read runs and manage datasets and scenarios. Neither can start
+a run, suggestion tools are not served, and credential fields are stripped
+from every result.
 
 **Read-only connections** (OAuth without "Also allow changes", or
 `/mcp/readonly`) see only tools annotated read-only; `tool_run` refuses the rest
