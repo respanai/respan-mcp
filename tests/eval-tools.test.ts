@@ -98,7 +98,7 @@ describe('dataset tools the eval flow needs', () => {
       .toMatchObject({ method: 'POST', path: '/api/datasets/ds/behaviors/try/', body: { definition: 'd', row_id: 'r' } });
   });
 
-  it('drops the rows from a summary-only comparison', async () => {
+  it('drops the rows only from a summary-only comparison', async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => new Response(
       JSON.stringify({ versions: [{ id: 'v' }], results: [{ match_id: 'm' }], total_count: 4 }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
@@ -111,10 +111,14 @@ describe('dataset tools the eval flow needs', () => {
     await server.connect(serverTransport);
     const mcp = new Client({ name: 'eval-tools-test', version: '0.0.0' });
     await mcp.connect(clientTransport);
-    const result = await mcp.callTool({ name: 'dataset_version_comparison_get', arguments: { dataset_id: 'ds', is_summary_only: true } });
+    const call = async (is_summary_only: boolean) => JSON.parse(((await mcp.callTool({
+      name: 'dataset_version_comparison_get', arguments: { dataset_id: 'ds', is_summary_only },
+    })).content as { type: string; text: string }[])[0].text);
+    const summary = await call(true);
+    const full = await call(false);
     await mcp.close();
-    const data = JSON.parse((result.content as { type: string; text: string }[])[0].text);
-    expect(data).toEqual({ versions: [{ id: 'v' }], total_count: 4 });
+    expect(summary).toEqual({ versions: [{ id: 'v' }], total_count: 4 });
+    expect(full.results).toEqual([{ match_id: 'm' }]);
   });
 });
 
