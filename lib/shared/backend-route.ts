@@ -30,6 +30,8 @@ export interface BackendRoute {
   requests: readonly BackendRequest[];
   /** Deletes, overwrites, deploys, undeploys or revokes. */
   destructive?: boolean;
+  /** The requests' `when` arguments are alternatives: exactly one per call. */
+  oneWhen?: boolean;
   /** Arguments the backend reads under another key: `{arg: wire_key}`. */
   renames?: Readonly<Record<string, string>>;
   /** Arguments the backend reads as a one-element list. */
@@ -99,6 +101,10 @@ export function buildRequest(route: BackendRoute, args: Record<string, unknown>)
     : [];
   if (refused.length) {
     throw new Error(`Cannot filter by ${refused.join(', ')} here. Use log_list for behaviors, topics, fault_domain or messages_smart; the project comes from your credential.`);
+  }
+  if (route.oneWhen) {
+    const given = route.requests.filter((candidate) => candidate.when && isPresent(args[candidate.when]));
+    if (given.length > 1) throw new Error(`Provide only one of: ${given.map((candidate) => candidate.when).join(', ')}.`);
   }
   const request = route.requests.find((candidate) => !candidate.when || isPresent(args[candidate.when]));
   if (!request) throw new Error(`Provide one of: ${route.requests.map((candidate) => candidate.when).join(', ')}.`);

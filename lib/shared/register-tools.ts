@@ -11,9 +11,10 @@ import { BACKEND_ROUTES } from './backend-routes.js';
 import { registerProjectTools } from '../account/projects.js';
 import { registerBehaviorSettings } from '../pulses/settings.js';
 import { registerFilterSchemaTools } from '../production/filter-schema.js';
+import { registerAbTestSummary } from '../ab-tests/summary.js';
 
 /** Tools registered outside the route table, and the index's own tools. */
-const UNROUTED_TOOL_NAMES = ['log_filter_schema_get', 'behavior_disabled_set', 'project_list', 'project_switch', 'tool_search', 'tool_run'];
+const UNROUTED_TOOL_NAMES = ['ab_test_summary', 'log_filter_schema_get', 'behavior_disabled_set', 'project_list', 'project_switch', 'tool_search', 'tool_run'];
 
 /** Every name this server can serve; tool descriptions may only point at these. */
 export const PUBLISHED_TOOL_NAMES: ReadonlySet<string> = new Set([
@@ -26,4 +27,5 @@ export function registerRespanTools(server: McpServer, client: AuthenticatedClie
   registerFilterSchemaTools(server, client);
   registerBehaviorSettings(server, client);
   registerProjectTools(server, client);
+  registerAbTestSummary(server, client);
 }
