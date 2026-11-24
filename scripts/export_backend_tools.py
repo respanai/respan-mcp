@@ -40,6 +40,7 @@ from utils.mcp.tools.core import TOOL_ACTIVITY_PARAM_KEY  # noqa: E402
 from utils.mcp.tool_bridge import (  # noqa: E402
     AGENT_READ_ONLY_TOOLS,
     AGENT_SAFE_DOMAINS,
+    AGENT_SAFE_EXCLUDED_TOOL_NAMES,
     register_tools,
 )
 
@@ -130,6 +131,9 @@ tools, _ = register_tools(sorted(AGENT_SAFE_DOMAINS, key=str), client=None)
 exported = []
 for tool in sorted(tools, key=lambda t: t["function"]["name"]):
     function = tool["function"]
+    # Tools the customer-facing agent never loads (legacy Experiments' writes).
+    if function["name"] in AGENT_SAFE_EXCLUDED_TOOL_NAMES:
+        continue
     schema = json.loads(json.dumps(function["parameters"]))
     schema.get("properties", {}).pop(ACTIVITY, None)
     if ACTIVITY in schema.get("required", []):

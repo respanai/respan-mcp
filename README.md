@@ -8,7 +8,7 @@ Model Context Protocol (MCP) server for [Respan](https://respan.ai) - access log
 - **Behaviors and errors** - Analyze quality signals, errors, and incidents
 - **Monitors** - Manage alerts, versions, deployment, and delivery history
 - **Prompts** - Manage prompt templates and versions
-- **Datasets, experiments and evaluators** - Build datasets from logs, run experiments, test graders
+- **Datasets and evaluators** - Build datasets from logs, replay them as versions and compare scores, test graders; Experiments are legacy and read-only
 - **Project settings** - API keys, caches, exports, webhooks, tags, saved views and limits
 - **Tool search** - Everyday tools are listed; `tool_search` and `tool_run` reach the rest
 
@@ -123,7 +123,7 @@ names (`metrics_summary`, `org_switch`, `workspace_switch`, ...) stay callable
 through `lib/shared/tool-aliases.ts`.
 
 **Naming and description rules** (every new or renamed tool; existing names
-such as `experiment_run` stay until their area renames them with an alias; fix them in the
+such as `simulation_run_history` stay until their area renames them with an alias; fix them in the
 backend's tool definitions, never in `lib/generated/backend-tools.json`):
 
 - Name: `<resource>_<verb>`, one verb per meaning: `list` (rows), `get` (one
