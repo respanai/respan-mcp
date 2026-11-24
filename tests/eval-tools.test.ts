@@ -8,9 +8,10 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { BACKEND_ROUTES } from '../lib/shared/backend-routes.js';
 import { buildRequest, registerRoutedTools } from '../lib/shared/backend-route.js';
+import { BACKEND_TOOLS } from '../lib/shared/backend-tool.js';
 import type { AuthenticatedClient } from '../lib/shared/client.js';
 
-const BEHAVIOR_TOOLS = ['dataset_eval_run', 'experiment_create', 'experiment_update', 'experiment_validate'];
+const BEHAVIOR_TOOLS = ['dataset_eval_run'];
 
 describe('behavior scoring', () => {
   it.each(BEHAVIOR_TOOLS)('%s forwards is_scoring_behaviors and behavior_keys as given', (name) => {
@@ -176,5 +177,22 @@ describe('workflow lists', () => {
     const { query } = buildRequest(route, {});
     expect(WORKFLOW_TYPES).toContain(query.type);
     expect(query.type).toBe(`${name.replace(/_list$/, '')}s`);
+  });
+});
+
+// Legacy Experiments are read-only (BE-12): the customer-facing agent never loads
+// their writes, so this server neither lists nor routes them.
+const LEGACY_EXPERIMENT_WRITES = ['experiment_create', 'experiment_delete', 'experiment_draft_create', 'experiment_run', 'experiment_update', 'experiment_validate'];
+
+describe('legacy experiments', () => {
+  it.each(LEGACY_EXPERIMENT_WRITES)('%s is neither in the catalog nor routed', (name) => {
+    expect(BACKEND_TOOLS.has(name)).toBe(false);
+    expect(BACKEND_ROUTES).not.toHaveProperty(name);
+  });
+
+  it('keeps the read tools', () => {
+    for (const name of ['experiment_list', 'experiment_get', 'experiment_log_list', 'experiment_log_summary']) {
+      expect(BACKEND_TOOLS.has(name)).toBe(true);
+    }
   });
 });

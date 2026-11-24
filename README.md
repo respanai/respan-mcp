@@ -8,7 +8,7 @@ Model Context Protocol (MCP) server for [Respan](https://respan.ai) - access log
 - **Behaviors and errors** - Analyze quality signals, errors, and incidents
 - **Monitors** - Manage alerts, versions, deployment, and delivery history
 - **Prompts** - Manage prompt templates and versions
-- **Datasets, experiments and evaluators** - Build datasets from logs, run experiments, test graders
+- **Datasets and evaluators** - Build datasets from logs, replay them as versions and compare scores, test graders; Experiments are legacy and read-only
 - **Project settings** - API keys, caches, exports, webhooks, tags, saved views and limits
 - **Tool search** - Everyday tools are listed; `tool_search` and `tool_run` reach the rest
 
@@ -123,7 +123,7 @@ names (`metrics_summary`, `org_switch`, `workspace_switch`, ...) stay callable
 through `lib/shared/tool-aliases.ts`.
 
 **Naming and description rules** (every new or renamed tool; existing names
-such as `experiment_run` stay until their area renames them with an alias; fix them in the
+such as `simulation_run_history` stay until their area renames them with an alias; fix them in the
 backend's tool definitions, never in `lib/generated/backend-tools.json`):
 
 - Name: `<resource>_<verb>`, one verb per meaning: `list` (rows), `get` (one
@@ -155,10 +155,10 @@ tools in `Respan-Enabled-Tools`, or set `RESPAN_MCP_LIST_ALL=1` (stdio).
 `lib/shared/backend-routes.ts`: the request its backend executor sends (method,
 path, query and body keys, fixed values). One executor builds that request and
 returns the server's answer; the server validates, defaults and shapes. A
-tool's schema lists only the arguments its route sends. Experiment, dataset
-version and dataset eval-run tools pass `is_scoring_behaviors` and
-`behavior_keys` through as the in-product agent does, so behavior scoring follows
-the backend's default unless the caller turns it off. Red-team tools only read;
+tool's schema lists only the arguments its route sends. `dataset_eval_run`
+passes `is_scoring_behaviors` and `behavior_keys` through as the in-product
+agent does, so behavior scoring follows the backend's default unless the caller
+turns it off; a dataset version is scored by its `behavior_settings`. Red-team tools only read;
 simulation tools read runs and manage datasets and scenarios. Neither can start
 a run, suggestion tools are not served, and credential fields are stripped
 from every result.
