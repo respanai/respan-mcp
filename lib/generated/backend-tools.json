@@ -6616,7 +6616,7 @@
      },
      "span_id": {
       "type": "string",
-      "description": "Span id, the `unique_id` of a log_list row: one LLM call or step. It is `span_unique_id` in trace_get's span_tree."
+      "description": "Span id, the `unique_id` of a log_list row: one LLM call or step. Each span in trace_get's span_tree carries it as `unique_id` too."
      },
      "storage_object_key": {
       "type": "string",
@@ -6741,7 +6741,7 @@
     "properties": {
      "span_id": {
       "type": "string",
-      "description": "Span id, the `unique_id` of a log_list row: one LLM call or step. It is `span_unique_id` in trace_get's span_tree."
+      "description": "Span id, the `unique_id` of a log_list row: one LLM call or step. Each span in trace_get's span_tree carries it as `unique_id` too."
      },
      "page": {
       "type": "integer",
@@ -10633,7 +10633,7 @@
     "properties": {
      "span_id": {
       "type": "string",
-      "description": "Span id, the `unique_id` of a log_list row: one LLM call or step. It is `span_unique_id` in trace_get's span_tree."
+      "description": "Span id, the `unique_id` of a log_list row: one LLM call or step. Each span in trace_get's span_tree carries it as `unique_id` too."
      },
      "evaluator_id": {
       "type": "string",
