@@ -60,7 +60,7 @@
        "pending",
        "completed"
       ],
-      "description": "completed when reviewed; pending to reopen."
+      "description": "completed when the review is done. If the item has evaluator_ids, save those scores first: completing an item that a paused workflow is waiting on resumes that workflow. pending to reopen."
      },
      "completed_at": {
       "type": "string",
@@ -68,7 +68,7 @@
      },
      "assignee_id": {
       "type": "integer",
-      "description": "User id to re-assign the item to: `user.id` of a member row from org_member_list (not the row's own `id`). Project admin only."
+      "description": "User id to re-assign the item to: `user.id` of an accepted member row (pending false) from org_member_list, not the row's own `id`. Project admin only."
      }
     },
     "required": [
