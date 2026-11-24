@@ -335,7 +335,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "credential_type": {
       "type": "string",
@@ -396,7 +396,7 @@
      },
      "trigger_event_type": {
       "type": "string",
-      "description": "Event type this automation is designed to handle (values: request_log, trace_completed, customer_budget_limit_reached, credit_low_balance_threshold_reached, limit_policy_soft_triggered, limit_policy_hard_triggered, on_eval_result_ingested, custom_event, behaviors_classified, eval_only, scheduled). UI wording → enum: 'spans'/'logs'/'requests' → request_log; 'completed traces'/'traces' → trace_completed; 'eval result' → on_eval_result_ingested; 'span behaviors detected' → behaviors_classified (a span after its behaviors are scored; gate on event.behaviors.<behavior key>.label, 1 = detected). 'scheduled' (the reports trigger) fires on schedule_cron instead of an event and REQUIRES schedule_cron."
+      "description": "Event type this automation is designed to handle (values: request_log, trace_completed, customer_budget_limit_reached, credit_low_balance_threshold_reached, limit_policy_soft_triggered, limit_policy_hard_triggered, on_eval_result_ingested, custom_event, behaviors_classified, eval_only, scheduled). UI wording → enum: 'spans'/'logs'/'requests' → request_log; 'completed traces'/'traces' → trace_completed; 'eval result' → on_eval_result_ingested; 'span behaviors detected' → behaviors_classified (a span after its behaviors are scored; gate on event.behaviors.<behavior key>.label, 1 = detected). A behavior alert watches ONE behavior (a built-in key such as 'refusal', or a custom behavior id): its rate is the rolling avg of behaviors.<key>.label, its average score the avg of behaviors.<key>.prob (rolling metrics need 20 spans per window), and a per-span alert is condition label=1 -> throttle (cooldown_seconds) -> notification. Behaviors must be on for the project; label/prob are the only fields. 'scheduled' (the reports trigger) fires on schedule_cron instead of an event and REQUIRES schedule_cron."
      },
      "schedule_cron": {
       "type": "string",
@@ -1751,6 +1751,35 @@
    "readOnly": false
   },
   {
+   "name": "dataset_behavior_try",
+   "description": "Try a behavior definition on one dataset row before saving it. Nothing is stored. Returns probability (0 to 1), is_detected, state (uncertain is the scorer's Not sure) and how much of the row's trace the scorer read.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "dataset_id": {
+      "type": "string",
+      "description": "Dataset ID"
+     },
+     "definition": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 4000,
+      "description": "The behavior definition to try."
+     },
+     "row_id": {
+      "type": "string",
+      "description": "The row's unique_id, from dataset_log_list."
+     }
+    },
+    "required": [
+     "dataset_id",
+     "definition",
+     "row_id"
+    ]
+   },
+   "readOnly": false
+  },
+  {
    "name": "dataset_create",
    "description": "Create a new dataset from logs. Optionally provide time_range (or start_time + end_time); defaults to last 7 days if omitted. You MUST provide sampling if the user requested a percentage. Use shorthand filters for common cases: status_filter, model_filter, provider_filter, customer_filter, prompt_id_filter, prompt_name_filter, log_type_filter, environment_filter, min_cost, max_cost, min_latency, max_latency. Use initial_log_filters only for fields not covered by shorthands. For an empty dataset (no logs), set is_empty=true instead. To duplicate a dataset pass source_dataset_id; for generated scenarios pass simulation.",
    "inputSchema": {
@@ -2031,7 +2060,7 @@
          "description": "Log type (top-level; may also go in metadata)."
         },
         "input": {
-         "description": "Input text, messages, or structured data. For simulation scenarios, put the complete ScenarioSpec object here. Required fields: title, persona, goal, situation, interaction_style, opening_message. Also include nonempty success_criteria and failure_criteria arrays in this input object; expected_output does not supply simulation judging criteria. Use opening_message, not opening. Set max_turns here when the user limits conversation length."
+         "description": "Input text, messages, or structured data. For simulation scenarios, put the complete ScenarioSpec object here. Required fields: title, persona, goal, situation, interaction_style, opening_message. Also include nonempty success_criteria and failure_criteria arrays in this input object. Use opening_message, not opening. Set max_turns here when the user limits conversation length."
         },
         "variables": {
          "type": "object",
@@ -2039,9 +2068,6 @@
         },
         "output": {
          "description": "Existing output, optional; omit for generation inputs"
-        },
-        "expected_output": {
-         "description": "Expected output for evaluation, optional"
         },
         "metadata": {
          "type": "object",
@@ -2114,7 +2140,7 @@
       "description": "Log type (top-level; may also go in metadata)."
      },
      "input": {
-      "description": "Input text, messages, or structured data. For simulation scenarios, put the complete ScenarioSpec object here. Required fields: title, persona, goal, situation, interaction_style, opening_message. Also include nonempty success_criteria and failure_criteria arrays in this input object; expected_output does not supply simulation judging criteria. Use opening_message, not opening. Set max_turns here when the user limits conversation length."
+      "description": "Input text, messages, or structured data. For simulation scenarios, put the complete ScenarioSpec object here. Required fields: title, persona, goal, situation, interaction_style, opening_message. Also include nonempty success_criteria and failure_criteria arrays in this input object. Use opening_message, not opening. Set max_turns here when the user limits conversation length."
      },
      "variables": {
       "type": "object",
@@ -2122,9 +2148,6 @@
      },
      "output": {
       "description": "Existing output, optional; omit for generation inputs"
-     },
-     "expected_output": {
-      "description": "Expected output for evaluation, optional"
      },
      "metadata": {
       "type": "object",
@@ -2169,7 +2192,7 @@
   },
   {
    "name": "dataset_log_get",
-   "description": "Read persisted input, output, expected output and scores of one existing dataset row. Output may be a serialized assistant message: matching content or reordered JSON keys are not corruption; do not repair them when edits are prohibited. Use this readback to verify accepted writes.",
+   "description": "Read persisted input, output and scores of one existing dataset row. Output may be a serialized assistant message: matching content or reordered JSON keys are not corruption; do not repair them when edits are prohibited. Use this readback to verify accepted writes.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -2352,7 +2375,6 @@
      },
      "input": {},
      "output": {},
-     "expected_output": {},
      "metadata": {},
      "metrics": {},
      "variables": {
@@ -2369,7 +2391,7 @@
   },
   {
    "name": "dataset_update",
-   "description": "Update a dataset.",
+   "description": "Update a dataset's name, description, star or behavior_settings. Read the current behavior_settings with dataset_get first: the list you send replaces it.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -2387,6 +2409,26 @@
      },
      "starred": {
       "type": "boolean"
+     },
+     "behavior_settings": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "behavior_key": {
+         "type": "string",
+         "description": "A built-in behavior name or a custom behavior's id."
+        },
+        "weight": {
+         "type": "number",
+         "description": "How much it counts in the final score. Above 0."
+        }
+       },
+       "required": [
+        "behavior_key"
+       ]
+      },
+      "description": "The behaviors the dataset is scored on, and their weights; replaces the whole list. A new behavior scores the rows that lack it; a weight change only re-weighs the final score."
      }
     },
     "required": [
@@ -2396,8 +2438,30 @@
    "readOnly": false
   },
   {
+   "name": "dataset_version_cancel",
+   "description": "Stop a version's run in progress. Queued rows are dropped and finished rows are kept; a row already calling its model still finishes and may bill. On a sessions version (an A/B test) it stops sampling for good. Only when the user asked to stop this run.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "dataset_id": {
+      "type": "string",
+      "description": "The version whose run to stop."
+     },
+     "is_confirmed": {
+      "type": "boolean",
+      "description": "True only when the user explicitly asked to stop this run."
+     }
+    },
+    "required": [
+     "dataset_id",
+     "is_confirmed"
+    ]
+   },
+   "readOnly": false
+  },
+  {
    "name": "dataset_version_comparison_get",
-   "description": "Compare a dataset's versions row by row: each version's average final score, cost, tokens and row wins, and each row's score per version. A failed or missing row has no score and doesn't count as 0. Read warnings: they say when versions used different behaviors or weights. Defaults to the two latest replays.",
+   "description": "Compare a dataset's versions row by row. Defaults to the two latest replays. Returns: versions (each one's final_score_summary with average score, cost and tokens, plus row_win_count); winning_version_id (best average, null on a tie); behavior_rates (per version, per behavior: detected_count and scored_count over the matched rows); matched_row_count (rows every compared version has, the base of behavior_rates); row_filter_counts (how many rows each row_filter lists); warnings (versions used different behaviors, weights or definitions, so scores aren't like for like); and results, each row's score per version. A failed or missing row has no score and doesn't count as 0. Start with is_summary_only, then list rows with row_filter.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -2410,11 +2474,36 @@
       "items": {
        "type": "string"
       },
+      "maxItems": 10,
       "description": "Versions to compare, up to 10."
      },
      "baseline_version_id": {
       "type": "string",
-      "description": "Version the others are compared to."
+      "description": "Version the others are compared to. Defaults to the lowest version compared."
+     },
+     "row_filter": {
+      "type": "string",
+      "enum": [
+       "regressions",
+       "improvements",
+       "changed",
+       "missing",
+       "failed",
+       "edited"
+      ],
+      "description": "List only these rows: regressions or improvements against the baseline, changed scores, missing or failed rows, or rows a person edited."
+     },
+     "sort": {
+      "type": "string",
+      "enum": [
+       "score_delta",
+       "-score_delta"
+      ],
+      "description": "score_delta lists the worst drop against the baseline first, -score_delta the biggest gain. Default: match id."
+     },
+     "is_summary_only": {
+      "type": "boolean",
+      "description": "Return the aggregates only, without the rows."
      },
      "page": {
       "type": "integer",
@@ -2455,7 +2544,20 @@
      "behavior_settings": {
       "type": "array",
       "items": {
-       "type": "object"
+       "type": "object",
+       "properties": {
+        "behavior_key": {
+         "type": "string",
+         "description": "A built-in behavior name or a custom behavior's id."
+        },
+        "weight": {
+         "type": "number",
+         "description": "How much it counts in the final score. Above 0."
+        }
+       },
+       "required": [
+        "behavior_key"
+       ]
       },
       "description": "Behaviors and weights. Defaults to the baseline's."
      },
@@ -2471,6 +2573,60 @@
     ]
    },
    "readOnly": false
+  },
+  {
+   "name": "dataset_version_estimate",
+   "description": "What a new version would cost and take, per model, before it runs. Nothing runs or bills. Each estimate gives estimated_cost (USD, null when unpriced), estimated_seconds, tokens per row and its basis: the latest finished replay on the model, else on another model, else the baseline's rows. Not available for a sessions dataset.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "dataset_id": {
+      "type": "string",
+      "description": "The baseline dataset, or any of its versions."
+     },
+     "models": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "minItems": 1,
+      "maxItems": 10,
+      "description": "Model names to estimate."
+     },
+     "sample_size": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Replay only this many rows, as a version would."
+     }
+    },
+    "required": [
+     "dataset_id",
+     "models"
+    ]
+   },
+   "readOnly": true
+  },
+  {
+   "name": "dataset_version_get",
+   "description": "Read one version of a dataset: run_state, rows_done and rows_total, failure_causes, final_score_summary (average final score, row counts, cost and tokens), evaluator_pass_rates and its run_config. Poll it after dataset_version_create until run_state is completed, completed_with_errors, failed or stopped.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "dataset_id": {
+      "type": "string",
+      "description": "The baseline dataset, or any of its versions."
+     },
+     "version_id": {
+      "type": "string",
+      "description": "The version to read."
+     }
+    },
+    "required": [
+     "dataset_id",
+     "version_id"
+    ]
+   },
+   "readOnly": true
   },
   {
    "name": "dataset_version_list",
@@ -2572,7 +2728,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "credential_type": {
       "type": "string",
@@ -2642,7 +2798,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "time_tick": {
       "type": "string",
@@ -2782,7 +2938,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "credential_type": {
       "type": "string",
@@ -2860,7 +3016,7 @@
   },
   {
    "name": "error_group_list",
-   "description": "List classified error ISSUES (Sentry-style groups of gateway failures sharing an error_fingerprint), ranked by occurrence count. Up to 200 issues per call, NO pagination: the response is the complete ranking for the window. Use for: 'what is failing', top error triage, error breakdowns by error code/provider/fault domain. For a single issue's recent occurrences use error_group_get with its fingerprint. NOT log_list: grouping by fingerprint and ranking by count is what this tool does, and a status-code filter over one page of raw logs cannot reproduce it. RETURNS: issues, each with the issue fields (fingerprint, title, error_code, provider, status, count, first_seen, last_seen, fault_domain, ...). error_group_get adds recent occurrences. meta carries total_issues and total_errors (occurrence sum) for the whole window. error_code values: activation_required, api_connection_error, authentication_error, billing_payment_required, cancelled, content_policy_violation, context_length_exceeded, customer_budget_exceeded, customer_rate_limit_exceeded, cyber_policy, endpoint_rate_limit_exceeded, free_allowance_exhausted, insufficient_quota, invalid_messages, invalid_request, invalid_schema, invalid_signature, invalid_value, key_usage_limit_exceeded, media_too_large, media_unreachable, media_unreadable, missing_required_parameter, model_not_offered, no_billable_usage, not_found, onboarding_key_exhausted, output_limit_reached, payload_too_large, plan_permission_denied, promotion_closed, prompt_org_mismatch, provider_access_denied, provider_key_required, provider_overloaded, rate_limit_exceeded, realtime_session_limit, reference_not_found, respan_credits_required, respan_internal_error, respan_unavailable, saved_prompt_not_found, service_unavailable, timeout, too_many_media, tool_call_mismatch, unknown, unsupported_feature, unsupported_input_type, unsupported_tool, unsupported_value, value_too_large, wrong_endpoint.",
+   "description": "List classified error ISSUES (Sentry-style groups of gateway failures sharing an error_fingerprint), ranked by occurrence count. Up to 200 issues per call, NO pagination: the response is the complete ranking for the window. Use for: 'what is failing', top error triage, error breakdowns by error code/provider/fault domain. For a single issue's recent occurrences use error_group_get with its fingerprint. NOT log_list: grouping by fingerprint and ranking by count is what this tool does, and a status-code filter over one page of raw logs cannot reproduce it. RETURNS: issues, each with the issue fields (fingerprint, title, error_code, provider, status, count, first_seen, last_seen, fault_domain, ...). error_group_get adds recent occurrences. meta carries total_issues and total_errors (occurrence sum) for the whole window. error_code values: activation_required, api_connection_error, authentication_error, billing_payment_required, bio_policy, cancelled, content_policy_violation, context_length_exceeded, customer_budget_exceeded, customer_rate_limit_exceeded, cyber_policy, endpoint_rate_limit_exceeded, free_allowance_exhausted, insufficient_quota, invalid_messages, invalid_request, invalid_schema, invalid_signature, invalid_value, key_usage_limit_exceeded, media_too_large, media_unreachable, media_unreadable, missing_required_parameter, model_not_offered, no_billable_usage, not_found, onboarding_key_exhausted, output_limit_reached, payload_too_large, plan_permission_denied, promotion_closed, prompt_org_mismatch, provider_access_denied, provider_key_required, provider_overloaded, rate_limit_exceeded, realtime_session_limit, reference_not_found, respan_credits_required, respan_internal_error, respan_unavailable, saved_prompt_not_found, service_unavailable, timeout, too_many_media, tool_call_mismatch, unknown, unsupported_feature, unsupported_input_type, unsupported_tool, unsupported_value, value_too_large, wrong_endpoint.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -2896,6 +3052,7 @@
        "api_connection_error",
        "authentication_error",
        "billing_payment_required",
+       "bio_policy",
        "cancelled",
        "content_policy_violation",
        "context_length_exceeded",
@@ -3677,7 +3834,7 @@
   },
   {
    "name": "experiment_create",
-   "description": "Create and run an experiment. Processes a dataset through workflow tasks (prompt → completion) and scores every result with behaviors (on by default) and with boolean code evaluators or LLM judges (True/False or a number), if any. Human and other evaluators can't be added to new experiments. Returns experiment object with status. Workflow types: 'prompt' (test a saved prompt on data — needs prompt_id), 'completion' (run a raw text or video-output model on dataset input — needs model; video configuration is model-only), 'duplicate' (passthrough for scoring existing data as-is), 'condition' (needs condition_policy). evaluator_workflow_ids wants each evaluator's version PK `id` (from evaluator_list/create) — NOT the evaluator's `workflow_id` (family) and NOT a grader id. Wrong id type is the top cause of 404s here; on rejection, list evaluators and check which field the UUID matches.",
+   "description": "Legacy: Experiments are read-only for new work. Run a prompt or model over a dataset with dataset_version_create instead. Create and run an experiment. Processes a dataset through workflow tasks (prompt → completion) and scores every result with behaviors (on by default) and with boolean code evaluators or LLM judges (True/False or a number), if any. Human and other evaluators can't be added to new experiments. Returns experiment object with status. Workflow types: 'prompt' (test a saved prompt on data — needs prompt_id), 'completion' (run a raw text or video-output model on dataset input — needs model; video configuration is model-only), 'duplicate' (passthrough for scoring existing data as-is), 'condition' (needs condition_policy). evaluator_workflow_ids wants each evaluator's version PK `id` (from evaluator_list/create) — NOT the evaluator's `workflow_id` (family) and NOT a grader id. Wrong id type is the top cause of 404s here; on rejection, list evaluators and check which field the UUID matches.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -3770,7 +3927,7 @@
   },
   {
    "name": "experiment_delete",
-   "description": "Delete an experiment. DANGEROUS: You MUST ask the user to confirm the experiment name before deleting.",
+   "description": "Legacy: Experiments are read-only for new work. Run a prompt or model over a dataset with dataset_version_create instead. Delete an experiment. DANGEROUS: You MUST ask the user to confirm the experiment name before deleting.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -3792,7 +3949,7 @@
   },
   {
    "name": "experiment_draft_create",
-   "description": "Validate, save, and read back a configured DRAFT experiment. Does not run inference. Use by default for requests to create an experiment; use experiment_run only when execution is explicitly requested. A partial error includes the surviving draft ID; repair it instead of creating another.",
+   "description": "Legacy: Experiments are read-only for new work. Run a prompt or model over a dataset with dataset_version_create instead. Validate, save, and read back a configured DRAFT experiment. Does not run inference. Use by default for requests to create an experiment; use experiment_run only when execution is explicitly requested. A partial error includes the surviving draft ID; repair it instead of creating another.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -4079,7 +4236,7 @@
   },
   {
    "name": "experiment_get",
-   "description": "Get full experiment details by ID, including workflow configuration, evaluator version IDs, dataset, status, progress, and timestamps.",
+   "description": "Legacy, read-only. Get full experiment details by ID, including workflow configuration, evaluator version IDs, dataset, status, progress, and timestamps.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -4096,7 +4253,7 @@
   },
   {
    "name": "experiment_histogram",
-   "description": "Get score distribution histogram for a specific evaluator in an experiment. Returns bins with counts and stats (min, max, mean, total).",
+   "description": "Legacy, read-only. Get score distribution histogram for a specific evaluator in an experiment. Returns bins with counts and stats (min, max, mean, total).",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -4122,7 +4279,7 @@
   },
   {
    "name": "experiment_list",
-   "description": "List ExperimentV2 experiments. Supports filtering and pagination via POST-for-Filtering. Returns name, dataset, status, progress, workflow_count, tags. Admin keys see all projects by default — pass `org` to scope to a specific project's experiments.",
+   "description": "Legacy, read-only. List ExperimentV2 experiments. Supports filtering and pagination via POST-for-Filtering. Returns name, dataset, status, progress, workflow_count, tags. Admin keys see all projects by default — pass `org` to scope to a specific project's experiments.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -4165,7 +4322,7 @@
   },
   {
    "name": "experiment_log_get",
-   "description": "Get full details of a single experiment log/trace by ID. Returns complete input, output, expected_output, scores with evaluator reasoning, span tree, and all metrics. Use this after experiment_log_list to drill into specific logs for analysis.",
+   "description": "Legacy, read-only. Get full details of a single experiment log/trace by ID. Returns complete input, output, expected_output, scores with evaluator reasoning, span tree, and all metrics. Use this after experiment_log_list to drill into specific logs for analysis.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -4187,7 +4344,7 @@
   },
   {
    "name": "experiment_log_list",
-   "description": "List logs/traces for an experiment. Returns the server's trace rows (scores, cost, tokens, latency; input/output are previews unless detail is set — use experiment_log_get for full details). Supports pagination, sorting, and POST-for-Filtering. To rank by evaluator score, sort by 'scores__<evaluator_version_id>' where <evaluator_version_id> is the evaluator's version PK (the same id passed as an experiment's evaluator_workflow_ids — NOT the grader id, NOT the workflow_id family). Ascending = worst first ('scores__<id>'); descending = best first ('-scores__<id>'). Rows without a populated scores field mean the experiment is still running or had no evaluator attached — report that honestly, never treat it as a zero score.",
+   "description": "Legacy, read-only. List logs/traces for an experiment. Returns the server's trace rows (scores, cost, tokens, latency; input/output are previews unless detail is set — use experiment_log_get for full details). Supports pagination, sorting, and POST-for-Filtering. To rank by evaluator score, sort by 'scores__<evaluator_version_id>' where <evaluator_version_id> is the evaluator's version PK (the same id passed as an experiment's evaluator_workflow_ids — NOT the grader id, NOT the workflow_id family). Ascending = worst first ('scores__<id>'); descending = best first ('-scores__<id>'). Rows without a populated scores field mean the experiment is still running or had no evaluator attached — report that honestly, never treat it as a zero score.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -4236,7 +4393,7 @@
   },
   {
    "name": "experiment_log_summary",
-   "description": "Get aggregate statistics for experiment logs: total cost, tokens, latency, throughput, and score summaries by evaluator.",
+   "description": "Legacy, read-only. Get aggregate statistics for experiment logs: total cost, tokens, latency, throughput, and score summaries by evaluator.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -4265,7 +4422,7 @@
   },
   {
    "name": "experiment_row_list",
-   "description": "Read a bounded sample of a saved experiment's dataset manifest rows; this does not render a prospective definition or run inference.",
+   "description": "Legacy, read-only. Read a bounded sample of a saved experiment's dataset manifest rows; this does not render a prospective definition or run inference.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -4286,7 +4443,7 @@
   },
   {
    "name": "experiment_run",
-   "description": "Explicitly start a saved experiment through the existing runs API. May incur inference charges. Returns accepted run state, not completed results; inspect experiment_get for progress.",
+   "description": "Legacy: Experiments are read-only for new work. Run a prompt or model over a dataset with dataset_version_create instead. Explicitly start a saved experiment through the existing runs API. May incur inference charges. Returns accepted run state, not completed results; inspect experiment_get for progress.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -4314,7 +4471,7 @@
   },
   {
    "name": "experiment_update",
-   "description": "Update a saved experiment definition without running it. Cannot edit an active run.",
+   "description": "Legacy: Experiments are read-only for new work. Run a prompt or model over a dataset with dataset_version_create instead. Update a saved experiment definition without running it. Cannot edit an active run.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -4606,7 +4763,7 @@
   },
   {
    "name": "experiment_validate",
-   "description": "Validate a prospective experiment and preview rendered dataset inputs. Read-only: no saved experiment, inference, billing, or worker dispatch. Check is_valid and row errors before creating a draft.",
+   "description": "Legacy: Experiments are read-only for new work. Run a prompt or model over a dataset with dataset_version_create instead. Validate a prospective experiment and preview rendered dataset inputs. Read-only: no saved experiment, inference, billing, or worker dispatch. Check is_valid and row errors before creating a draft.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -6788,7 +6945,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "time_tick": {
       "type": "string",
@@ -6850,7 +7007,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "metrics_to_aggregate": {
       "type": "array",
@@ -6917,7 +7074,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "metrics_to_aggregate": {
       "type": "array",
@@ -6993,7 +7150,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "credential_type": {
       "type": "string",
@@ -7059,7 +7216,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "credential_type": {
       "type": "string",
@@ -7090,13 +7247,13 @@
   },
   {
    "name": "model_list",
-   "description": "query is a UI activity label, NOT a search filter. To resolve a known family, pass foundation_model_name explicitly and omit all=true. Broad agent discovery returns summaries; filter by model_name or foundation_model_name for full details. List models: the project's custom models plus the global catalog. Narrow with `filters` or `affiliation_category`. PAGINATION: The server caps `page_size`. The full global model catalog exceeds one page (~hundreds of rows across providers: anthropic, azure_openai, azure_deepseek, bedrock, google_vertex_ai, fireworks, cohere, deepseek, openrouter, etc.). `meta.total` appears only when one page holds every match; when more rows exist you get `meta.has_more: true` and NO total, because the catalog endpoint pages without counting. So when no filter is applied, results are paged alphabetically by `model_name` and you MUST iterate pages or flip `sort_by` (e.g. `-model_name`) to see the full range. Never report `meta.count` as the number of models. To find models for a specific provider, filter by `provider` (the LLMProvider's `provider_id`, e.g. 'azure_openai', 'anthropic'); to find by name fragment, use `model_name`; to list one family's variants across providers, use `foundation_model_name`. For video capability, first use foundation_model_list with input_modalities/output_modalities filters, then model_list with foundation_model_name to resolve exact variants. model_type is not a supported filter; do not pass modality filters to model_list. Any other condition goes in `filters`, the endpoint's filter body passed through as-is (e.g. discounted models: {\"has_discount\": {\"operator\": \"\", \"value\": true}}). Read prices from each row's `pricing.current`: what a plain request pays now, after the discount and at the time-of-day schedule multiplier. Every row carries `is_promoted` (the model has a free allowance, a managed limit policy, right now) and `promotion_windows` ([{\"period\": \"day\", \"metric\": \"request_count\", \"default_limit\": 50, \"tiers\": [{\"when\": {\"purchased_credits\": {\"operator\": \"gte\", \"value\": 10}}, \"limit\": 1000}], \"free_tokens\": 0}, ...], shortest first; the same for every viewer, a workspace's own limit is limit_policy_managed_usage) and `promotion_model`: the variant the allowance is on (on a base row with a free promotion, a link to that promotion's own row). Start or end a FREE promotion of `<model>` (the catalog row `<model>:free`, served via `<model>`) with model_promotion_create / model_promotion_end; edit allowances with limit_policy_* and org=\"global\".",
+   "description": "query is a UI activity label, NOT a search filter. To resolve a known family, pass foundation_model_name explicitly and omit all=true. Broad agent discovery returns summaries; filter by model_name or foundation_model_name for full details. List models: the project's custom models plus the global catalog. Narrow with `filters` or `affiliation_category`. PAGINATION: The server caps `page_size`. The full global model catalog exceeds one page (~hundreds of rows across providers: anthropic, azure_foundry, bedrock, google_vertex_ai, fireworks, cohere, deepseek, openrouter, etc.). `meta.total` appears only when one page holds every match; when more rows exist you get `meta.has_more: true` and NO total, because the catalog endpoint pages without counting. So when no filter is applied, results are paged alphabetically by `model_name` and you MUST iterate pages or flip `sort_by` (e.g. `-model_name`) to see the full range. Never report `meta.count` as the number of models. To find models for a specific provider, filter by `provider` (the LLMProvider's `provider_id`, e.g. 'azure_foundry', 'anthropic'); to find by name fragment, use `model_name`; to list one family's variants across providers, use `foundation_model_name`. For video capability, first use foundation_model_list with input_modalities/output_modalities filters, then model_list with foundation_model_name to resolve exact variants. model_type is not a supported filter; do not pass modality filters to model_list. Any other condition goes in `filters`, the endpoint's filter body passed through as-is (e.g. discounted models: {\"has_discount\": {\"operator\": \"\", \"value\": true}}). Read prices from each row's `pricing.current`: what a plain request pays now, after the discount and at the time-of-day schedule multiplier. Every row carries `is_promoted` (the model has a free allowance, a managed limit policy, right now) and `promotion_windows` ([{\"period\": \"day\", \"metric\": \"request_count\", \"default_limit\": 50, \"tiers\": [{\"when\": {\"purchased_credits\": {\"operator\": \"gte\", \"value\": 10}}, \"limit\": 1000}], \"free_tokens\": 0}, ...], shortest first; the same for every viewer, a workspace's own limit is limit_policy_managed_usage) and `promotion_model`: the variant the allowance is on (on a base row with a free promotion, a link to that promotion's own row). A FREE promotion of `<model>` (the catalog row `<model>:free`, served via `<model>`) cannot be started or ended by an agent tool; staff manage it in the internal dashboard (Metrics > Promotions).",
    "inputSchema": {
     "type": "object",
     "properties": {
      "provider": {
       "type": "string",
-      "description": "Filter by LLMProvider.provider_id (e.g. 'azure_openai', 'azure_deepseek', 'anthropic', 'bedrock')"
+      "description": "Filter by LLMProvider.provider_id (e.g. 'azure_foundry', 'anthropic', 'bedrock')"
      },
      "affiliation_category": {
       "type": "string",
@@ -7218,7 +7375,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "credential_type": {
       "type": "string",
@@ -7279,7 +7436,7 @@
      },
      "trigger_event_type": {
       "type": "string",
-      "description": "Event type this monitor is designed to handle (values: request_log, trace_completed, customer_budget_limit_reached, credit_low_balance_threshold_reached, limit_policy_soft_triggered, limit_policy_hard_triggered, on_eval_result_ingested, custom_event, behaviors_classified, eval_only, scheduled). UI wording → enum: 'spans'/'logs'/'requests' → request_log; 'completed traces'/'traces' → trace_completed; 'eval result' → on_eval_result_ingested; 'span behaviors detected' → behaviors_classified (a span after its behaviors are scored; gate on event.behaviors.<behavior key>.label, 1 = detected). 'scheduled' (the reports trigger) fires on schedule_cron instead of an event and REQUIRES schedule_cron."
+      "description": "Event type this monitor is designed to handle (values: request_log, trace_completed, customer_budget_limit_reached, credit_low_balance_threshold_reached, limit_policy_soft_triggered, limit_policy_hard_triggered, on_eval_result_ingested, custom_event, behaviors_classified, eval_only, scheduled). UI wording → enum: 'spans'/'logs'/'requests' → request_log; 'completed traces'/'traces' → trace_completed; 'eval result' → on_eval_result_ingested; 'span behaviors detected' → behaviors_classified (a span after its behaviors are scored; gate on event.behaviors.<behavior key>.label, 1 = detected). A behavior alert watches ONE behavior (a built-in key such as 'refusal', or a custom behavior id): its rate is the rolling avg of behaviors.<key>.label, its average score the avg of behaviors.<key>.prob (rolling metrics need 20 spans per window), and a per-span alert is condition label=1 -> throttle (cooldown_seconds) -> notification. Behaviors must be on for the project; label/prob are the only fields. 'scheduled' (the reports trigger) fires on schedule_cron instead of an event and REQUIRES schedule_cron."
      },
      "schedule_cron": {
       "type": "string",
@@ -8453,7 +8610,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "credential_type": {
       "type": "string",
@@ -8683,7 +8840,7 @@
   },
   {
    "name": "provider_list",
-   "description": "List the global provider catalog: which providers the gateway supports. Returns provider_id, provider_name, litellm_provider_id, moderation, timestamps; never credentials.",
+   "description": "List the global provider catalog: which providers the gateway supports. Returns provider_id, provider_name, moderation, timestamps; never credentials.",
    "inputSchema": {
     "type": "object",
     "properties": {},
@@ -8766,7 +8923,7 @@
      },
      "filters": {
       "type": "object",
-      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"azure_openai\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); \"azure_foundry\" (Azure AI Foundry) and \"azure_openai\" (legacy Azure OpenAI) are separate slugs — for Azure questions query both and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
+      "description": "Filter the input population BEFORE ranking/summarizing. Shape: {\"<field>\": {\"operator\": \"<op>\", \"value\": \"<val>\"}}. CRITICAL: operator \"\" (empty string) means EXACT EQUALITY — pass it as a literal empty string, NOT a placeholder. Filterable fields and their semantics: \"provider_id\" — provider slug for provider-scoped questions. Canonical slugs: \"anthropic\", \"openai\", \"azure_foundry\", \"bedrock\", \"google_gemini_ai\", \"google_vertex_ai\", \"cohere\", \"deepseek\", \"fireworks\", \"groq\", \"mistral\", \"moonshot\", \"openrouter\", \"perplexity\", \"together_ai\", \"xai\", \"cerebras\". NOTE the underscored compound forms — \"google\" is NOT a slug (use \"google_gemini_ai\" or \"google_vertex_ai\"); \"vertex\" is NOT a slug (use \"google_vertex_ai\"); Azure is \"azure_foundry\", but logs from before the Azure providers were merged keep their old slugs \"azure_openai\", \"azure_deepseek\" and \"azure\" — for Azure questions query all four and combine. REQUIRED when the user names a specific provider; without it the tool returns a global ranking/summary across ALL providers, which is the wrong answer for provider-scoped questions. If the user says \"Google\" without specifying Gemini vs Vertex, ask which one or call separately for both and combine. Example: {\"provider_id\": {\"operator\": \"\", \"value\": \"anthropic\"}}. \"model\" — specific model string; used for model-name filtering, NOT provider filtering. Use operator \"icontains\" for model — stored names carry version/date suffixes (\"gpt-5.1-2025-11-13\"), so an exact match on \"gpt-5.1\" misses most logs. \"organization_key_id\" — UUID of an API key (resolve a user-given key name via api_key_list first; this field never accepts names). \"customer_identifier\" — end-user/customer tag string. \"deployment_name\" — deployment slug string. This filter IS supported on every dashboard tool whose schema exposes a `filters` parameter (the *_usage_list family, metric_timeseries, metric_summary, metric_chart_get, end_user_active_summary, metric_quantile_timeseries, metric_quantile_summary); never tell the user a tool that has this parameter cannot filter by these fields."
      },
      "credential_type": {
       "type": "string",
@@ -8958,7 +9115,7 @@
      },
      "trigger_event_type": {
       "type": "string",
-      "description": "Event type this report is designed to handle (values: request_log, trace_completed, customer_budget_limit_reached, credit_low_balance_threshold_reached, limit_policy_soft_triggered, limit_policy_hard_triggered, on_eval_result_ingested, custom_event, behaviors_classified, eval_only, scheduled). UI wording → enum: 'spans'/'logs'/'requests' → request_log; 'completed traces'/'traces' → trace_completed; 'eval result' → on_eval_result_ingested; 'span behaviors detected' → behaviors_classified (a span after its behaviors are scored; gate on event.behaviors.<behavior key>.label, 1 = detected). 'scheduled' (the reports trigger) fires on schedule_cron instead of an event and REQUIRES schedule_cron."
+      "description": "Event type this report is designed to handle (values: request_log, trace_completed, customer_budget_limit_reached, credit_low_balance_threshold_reached, limit_policy_soft_triggered, limit_policy_hard_triggered, on_eval_result_ingested, custom_event, behaviors_classified, eval_only, scheduled). UI wording → enum: 'spans'/'logs'/'requests' → request_log; 'completed traces'/'traces' → trace_completed; 'eval result' → on_eval_result_ingested; 'span behaviors detected' → behaviors_classified (a span after its behaviors are scored; gate on event.behaviors.<behavior key>.label, 1 = detected). A behavior alert watches ONE behavior (a built-in key such as 'refusal', or a custom behavior id): its rate is the rolling avg of behaviors.<key>.label, its average score the avg of behaviors.<key>.prob (rolling metrics need 20 spans per window), and a per-span alert is condition label=1 -> throttle (cooldown_seconds) -> notification. Behaviors must be on for the project; label/prob are the only fields. 'scheduled' (the reports trigger) fires on schedule_cron instead of an event and REQUIRES schedule_cron."
      },
      "schedule_cron": {
       "type": "string",
