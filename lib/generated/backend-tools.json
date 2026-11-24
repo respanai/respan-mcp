@@ -1171,7 +1171,7 @@
   },
   {
    "name": "behavior_span_list",
-   "description": "The spans where one behavior fired, newest first (paginated). Feed unique_id to log_get.",
+   "description": "The spans where one behavior fired, newest first (paginated). Feed unique_id to log_get as span_id.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -2964,7 +2964,7 @@
   },
   {
    "name": "error_group_get",
-   "description": "Get ONE error issue by error_fingerprint: aggregates plus its most recent occurrences inside the time window. Use after error_group_list to drill into a specific issue. CALL THIS whenever the user asks for more about an issue you already listed ('tell me more', 'details on the top one', 'what's behind that error'). The list row is only a summary — the occurrences here ARE the detail. Re-listing, or answering from the row you already have and merely OFFERING the drill-down, under-delivers the ask. RETURNS: fingerprint, title, error_code, provider, status (int HTTP status), count (occurrences in window), first_seen, last_seen, affected_customers, affected_models, fault_domain (user|respan|provider|none; empty on rows older than it), endpoint (e.g. chat/completions, embeddings), resolution (unresolved|resolved|ignored), plus occurrences — each with unique_id (feed to log_get for full request content), model, status, status_code, customer_identifier, environment, timestamp. Returns 404 when the fingerprint has no occurrences in the window.",
+   "description": "Get ONE error issue by error_fingerprint: aggregates plus its most recent occurrences inside the time window. Use after error_group_list to drill into a specific issue. CALL THIS whenever the user asks for more about an issue you already listed ('tell me more', 'details on the top one', 'what's behind that error'). The list row is only a summary — the occurrences here ARE the detail. Re-listing, or answering from the row you already have and merely OFFERING the drill-down, under-delivers the ask. RETURNS: fingerprint, title, error_code, provider, status (int HTTP status), count (occurrences in window), first_seen, last_seen, affected_customers, affected_models, fault_domain (user|respan|provider|none; empty on rows older than it), endpoint (e.g. chat/completions, embeddings), resolution (unresolved|resolved|ignored), plus occurrences — each with unique_id (pass to log_get as span_id for full request content), model, status, status_code, customer_identifier, environment, timestamp. Returns 404 when the fingerprint has no occurrences in the window.",
    "inputSchema": {
     "type": "object",
     "properties": {
