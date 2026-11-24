@@ -136,3 +136,50 @@ describe('log_filter_schema_get', () => {
     } finally { await client.close(); }
   });
 });
+
+describe('ab_test tools', () => {
+  const split = {
+    id: 'ab1', name: 'nano vs haiku', created_at: '2026-11-24T06:59:15Z', running_status: 'pending', skipped_sessions: 0,
+    run_config: { model: 'gpt-4o-mini', live_sampling: { mode: 'split', budget_usd: 1, sample_rate_basis_points: 7000,
+      variants: [{ name: 'nano', model: 'gpt-4.1-nano', share_basis_points: 3500 }, { name: 'haiku', model: 'claude-haiku-4-5', share_basis_points: 3500 }] } },
+  };
+  const side = (cost: number) => ({ body: { total_count: 4, total_span_count: 8, total_cost: cost, avg_latency: 0.5, total_tokens: 100 } });
+
+  it('ab_test_summary reads each split side\'s calls and sessions by its metadata', async () => {
+    const calls = (cost: number) => ({ body: { number_of_requests: 8, total_cost: cost, avg_latency: 0.5, total_tokens: 100 } });
+    const sessions = { body: { total_count: 4 } };
+    const { client, call, fetch } = await fixture([{ body: split }, calls(0.1), sessions, calls(0.2), sessions, calls(0.3), sessions]);
+    try {
+      const result = await client.callTool({ name: 'ab_test_summary', arguments: { ab_test_id: 'ab1' } });
+      expect(call(0)).toMatchObject({ method: 'GET', path: '/api/datasets/ab1/versions/ab1/' });
+      expect(fetch).toHaveBeenCalledTimes(7);
+      const reads = [1, 2, 3, 4, 5, 6].map((i) => call(i));
+      expect(new Set(reads.map((c) => c.path))).toEqual(new Set(['/api/request-logs/summary/', '/clickhouse/threads/summary/']));
+      expect(new Set(reads.map((c) => c.body.filters.metadata__ab_test_side.value))).toEqual(new Set(['primary', 'nano', 'haiku']));
+      expect(reads.every((c) => c.body.filters.metadata__ab_test_id.value === 'ab1' && c.query.start_time === split.created_at)).toBe(true);
+      const data = JSON.parse(text(result));
+      expect(data.state).toBe('running');
+      expect(data.sides.map((s: any) => s.side)).toEqual(['primary', 'nano', 'haiku']);
+      expect(data.sides.map((s: any) => s.model)).toEqual([null, 'gpt-4.1-nano', 'claude-haiku-4-5']);
+      expect(data.sides.every((s: any) => s.sessions === 4 && s.calls === 8)).toBe(true);
+    } finally { await client.close(); }
+  });
+
+  it('ab_test_update pauses through the run route and extends through the test', async () => {
+    const { client, call } = await fixture([{ body: {} }, { body: {} }]);
+    try {
+      await client.callTool({ name: 'ab_test_update', arguments: { ab_test_id: 'ab1', status: 'paused' } });
+      await client.callTool({ name: 'ab_test_update', arguments: { ab_test_id: 'ab1', live_sampling: { budget_usd: 5 } } });
+      expect(call(0)).toEqual({ method: 'PATCH', path: '/api/datasets/ab1/run/', query: {}, body: { status: 'paused' } });
+      expect(call(1)).toEqual({ method: 'PATCH', path: '/api/datasets/ab1/', query: {}, body: { live_sampling: { budget_usd: 5 } } });
+    } finally { await client.close(); }
+  });
+
+  it('ab_test_stop cancels the run', async () => {
+    const { client, call } = await fixture();
+    try {
+      await client.callTool({ name: 'ab_test_stop', arguments: { ab_test_id: 'ab1' } });
+      expect(call()).toEqual({ method: 'PATCH', path: '/api/datasets/ab1/run/', query: {}, body: { status: 'cancelled' } });
+    } finally { await client.close(); }
+  });
+});
