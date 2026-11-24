@@ -147,15 +147,21 @@ export function telemetryContext(
 
 /**
  * Notes which tools/call messages in a request body use an old tool name or
- * deprecated argument names, keyed by JSON-RPC id. Call it just before rewriteToolCallNames, which
- * replaces those names, so each tool_call event can say an alias was used.
+ * deprecated argument names (also inside tool_run), keyed by JSON-RPC id.
+ * Call it just before rewriteToolCallNames, which replaces those names, so
+ * each tool_call event can say an alias was used.
  */
 export function noteAliasedCalls(ctx: TelemetryContext, body: unknown): void {
   const messages = Array.isArray(body) ? body : [body];
   for (const message of messages) {
     const { method, id, params } = (message ?? {}) as { method?: unknown; id?: unknown; params?: { name?: unknown } };
     if (method !== 'tools/call' || typeof params?.name !== 'string') continue;
-    const deprecated = deprecatedArguments(resolveToolName(params.name), (params as { arguments?: unknown }).arguments);
+    const args = (params as { arguments?: unknown }).arguments as { name?: unknown; arguments?: unknown } | undefined;
+    // tool_run carries the tool and its arguments one level down.
+    const isToolRun = params.name === 'tool_run' && typeof args?.name === 'string';
+    const deprecated = isToolRun
+      ? deprecatedArguments(resolveToolName(args!.name as string), args!.arguments)
+      : deprecatedArguments(resolveToolName(params.name), args);
     if (deprecated.length) {
       ctx.deprecatedArgumentCalls ??= new Map();
       ctx.deprecatedArgumentCalls.set(id, deprecated);
