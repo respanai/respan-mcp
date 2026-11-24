@@ -10,6 +10,7 @@ import {
   authKindOf,
   httpStatusOf,
   instrumentToolCalls,
+  noteAliasedCalls,
   recordRequest,
   sessionKeyOf,
   type TelemetryContext,
@@ -205,6 +206,18 @@ describe('tool call telemetry', () => {
 });
 
 describe('telemetry helpers', () => {
+  it('notes deprecated argument names, directly and inside tool_run', () => {
+    const ctx: TelemetryContext = { ...CTX };
+    noteAliasedCalls(ctx, [
+      { method: 'tools/call', id: 1, params: { name: 'log_get', arguments: { unique_id: 'a' } } },
+      { method: 'tools/call', id: 2, params: { name: 'tool_run', arguments: { name: 'thread_get', arguments: { thread_identifier: 'b' } } } },
+      { method: 'tools/call', id: 3, params: { name: 'log_get', arguments: { span_id: 'c' } } },
+    ]);
+    expect(ctx.deprecatedArgumentCalls?.get(1)).toEqual(['unique_id']);
+    expect(ctx.deprecatedArgumentCalls?.get(2)).toEqual(['thread_identifier']);
+    expect(ctx.deprecatedArgumentCalls?.has(3)).toBe(false);
+  });
+
   it('classifies credentials by shape', () => {
     expect(authKindOf('mcp_at_abc', false)).toBe('oauth');
     expect(authKindOf('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2ln', false)).toBe('jwt');

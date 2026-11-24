@@ -5,7 +5,10 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpHandler, createServer } from '../lib/shared/mcp-handler.js';
 import { registerDocTools } from '../lib/docs/tools.js';
 import { applyToolPolicy } from '../lib/shared/tool-policy.js';
-import { TOOL_ALIASES, resolveToolName, rewriteToolCallNames } from '../lib/shared/tool-aliases.js';
+import { ARGUMENT_ALIASES, TOOL_ALIASES, resolveToolName, rewriteArguments, rewriteToolCallNames } from '../lib/shared/tool-aliases.js';
+import { BACKEND_TOOLS } from '../lib/shared/backend-tool.js';
+import { buildRequest } from '../lib/shared/backend-route.js';
+import { BACKEND_ROUTES } from '../lib/shared/backend-routes.js';
 
 // These tests cover the whole tool surface, not only the tools listed by default.
 process.env.RESPAN_MCP_LIST_ALL = '1';
@@ -90,6 +93,34 @@ describe('tool aliases', () => {
 
     expect(rewriteToolCallNames(undefined)).toEqual([]);
     expect(resolveToolName('not_a_tool')).toBe('not_a_tool');
+  });
+
+  it('moves deprecated id arguments to their public names; the public name wins', () => {
+    const call = { method: 'tools/call', params: { name: 'get_log_detail', arguments: { unique_id: 'abc' } } };
+    rewriteToolCallNames(call);
+    expect(call.params).toEqual({ name: 'log_get', arguments: { span_id: 'abc' } });
+
+    const both: Record<string, unknown> = { log_id: 'old', span_id: 'new', evaluator_id: 'e' };
+    expect(rewriteArguments('score_create', both)).toEqual(['log_id']);
+    expect(both).toEqual({ span_id: 'new', evaluator_id: 'e' });
+    expect(rewriteArguments('trace_list', { unique_id: 'x' })).toEqual([]);
+  });
+
+  it('sends score_create\'s span_id as log_id', () => {
+    const { body } = buildRequest(BACKEND_ROUTES.score_create, { span_id: 's1', evaluator_id: 'e1', boolean_value: true });
+    expect(body).toEqual({ log_id: 's1', evaluator_id: 'e1', boolean_value: true });
+    expect(buildRequest(BACKEND_ROUTES.log_get, { span_id: 'a/b' }).path).toBe('/clickhouse/request-logs/a%2Fb/');
+    expect(buildRequest(BACKEND_ROUTES.thread_get, { session_id: 'chat 1' }).path).toBe('/clickhouse/threads/chat%201/');
+  });
+
+  it('points every deprecated argument at a public name the tool takes', () => {
+    for (const [tool, aliases] of Object.entries(ARGUMENT_ALIASES)) {
+      const properties = BACKEND_TOOLS.get(tool)?.inputSchema.properties ?? {};
+      for (const [old, current] of Object.entries(aliases)) {
+        expect(current in properties, `${tool}: ${current} is not an argument`).toBe(true);
+        expect(old in properties, `${tool}: ${old} is still an argument`).toBe(false);
+      }
+    }
   });
 
   it('accepts old names in the Respan-Enabled-Tools header', async () => {
