@@ -94,6 +94,12 @@ describe('dataset tools the eval flow needs', () => {
     expect(BACKEND_ROUTES.dataset_version_cancel.destructive).toBe(true);
   });
 
+  it('records a person\'s verdict on one row behavior, escaping the row id', () => {
+    expect(buildRequest(BACKEND_ROUTES.dataset_log_verdict_update, { dataset_id: 'v2', unique_id: 'row/1', behavior_key: 'task_complete', prob: 0 }))
+      .toEqual({ method: 'PATCH', path: '/api/datasets/v2/logs/row%2F1/behaviors/task_complete/', query: {}, body: { prob: 0 } });
+    expect(BACKEND_TOOLS.get('dataset_log_verdict_update')?.readOnly).toBe(false);
+  });
+
   it('tries a behavior definition on one row', () => {
     expect(buildRequest(BACKEND_ROUTES.dataset_behavior_try, { dataset_id: 'ds', definition: 'd', row_id: 'r' }))
       .toMatchObject({ method: 'POST', path: '/api/datasets/ds/behaviors/try/', body: { definition: 'd', row_id: 'r' } });

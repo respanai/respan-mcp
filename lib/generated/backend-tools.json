@@ -2,7 +2,7 @@
  "tools": [
   {
    "name": "annotation_item_get",
-   "description": "Get annotation item details by ID.",
+   "description": "Legacy: the review queue page is retired in the app, so new items are not created there. To record a person's judgement on a dataset row, use dataset_log_verdict_update. Get annotation item details by ID.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -19,7 +19,7 @@
   },
   {
    "name": "annotation_item_list",
-   "description": "List annotation items for a project. Supports generic `filters` (status, source_type, assignee), sorting and pagination.",
+   "description": "Legacy: the review queue page is retired in the app, so new items are not created there. To record a person's judgement on a dataset row, use dataset_log_verdict_update. List annotation items for a project. Supports generic `filters` (status, source_type, assignee), sorting and pagination.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -46,7 +46,7 @@
   },
   {
    "name": "annotation_item_update",
-   "description": "Update an annotation item: change its status (the assigned worker or a project admin), or re-assign it (project admin only).",
+   "description": "Legacy: the review queue page is retired in the app, so new items are not created there. To record a person's judgement on a dataset row, use dataset_log_verdict_update. Update an annotation item: change its status (the assigned worker or a project admin), or re-assign it (project admin only).",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -56,7 +56,11 @@
      },
      "status": {
       "type": "string",
-      "description": "New status (e.g., pending, completed, skipped)"
+      "enum": [
+       "pending",
+       "completed"
+      ],
+      "description": "completed when reviewed; pending to reopen."
      },
      "completed_at": {
       "type": "string",
@@ -64,7 +68,7 @@
      },
      "assignee_id": {
       "type": "integer",
-      "description": "Database ID of the user to re-assign the item to (org_member_list id). Project admin only."
+      "description": "User id to re-assign the item to: `user.id` of a member row from org_member_list (not the row's own `id`). Project admin only."
      }
     },
     "required": [
@@ -75,7 +79,7 @@
   },
   {
    "name": "annotation_queue_list",
-   "description": "List the annotation work queue of the CURRENT user (items where assignee = the authenticated user, in the authenticated key's own project; it cannot be pointed at another project). Use for 'my annotation queue' / 'what do I need to review'. For the project-wide item list use annotation_item_list instead. RETURNS per entry: id, status, full_object (the item being annotated), and the current user's own scores.",
+   "description": "Legacy: the review queue page is retired in the app, so new items are not created there. To record a person's judgement on a dataset row, use dataset_log_verdict_update. List the annotation work queue of the CURRENT user (items where assignee = the authenticated user, in the authenticated key's own project; it cannot be pointed at another project). Use for 'my annotation queue' / 'what do I need to review'. For the project-wide item list use annotation_item_list instead. RETURNS per entry: id, status, full_object (the item being annotated), and the current user's own scores.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -102,7 +106,7 @@
   },
   {
    "name": "annotation_queue_summary",
-   "description": "Progress statistics for the CURRENT user's annotation queue in the authenticated key's own project (no project selector). RETURNS: total_items, pending_items, completed_items. For project-wide statistics an admin should use annotation_item_list.",
+   "description": "Legacy: the review queue page is retired in the app, so new items are not created there. To record a person's judgement on a dataset row, use dataset_log_verdict_update. Progress statistics for the CURRENT user's annotation queue in the authenticated key's own project (no project selector). RETURNS: total_items, pending_items, completed_items. For project-wide statistics an admin should use annotation_item_list.",
    "inputSchema": {
     "type": "object",
     "properties": {},
@@ -2385,6 +2389,40 @@
     "required": [
      "dataset_id",
      "unique_id"
+    ]
+   },
+   "readOnly": false
+  },
+  {
+   "name": "dataset_log_verdict_update",
+   "description": "Record a person's verdict on one behavior for one dataset row: the human review step. prob 1 = the behavior happened, 0 = it didn't. It replaces the scorer's verdict for that row, the row's and its version's final scores count it on the next read, and a re-run keeps it. dataset_version_comparison_get with row_filter=edited lists the rows people corrected. Errors with not found when the row has no score for that behavior yet. RETURNS: the row's verdict for that behavior.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "dataset_id": {
+      "type": "string",
+      "description": "The version the row belongs to: every version is its own dataset id. In a comparison, use the cell's dataset_id."
+     },
+     "unique_id": {
+      "type": "string",
+      "description": "The row's unique_id, from dataset_log_list or a comparison cell."
+     },
+     "behavior_key": {
+      "type": "string",
+      "description": "A behavior the row was scored on: a key in the row's verdicts (dataset_log_get)."
+     },
+     "prob": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "1 = happened, 0 = didn't happen."
+     }
+    },
+    "required": [
+     "dataset_id",
+     "unique_id",
+     "behavior_key",
+     "prob"
     ]
    },
    "readOnly": false
