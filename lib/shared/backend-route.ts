@@ -48,7 +48,12 @@ export interface BackendRoute {
   omit?: readonly string[];
   /** An argument, never sent, that cuts every string of the response to that many characters. */
   preview?: string;
+  /** A boolean argument, never sent: when true, ask for one row and drop `results`, keeping the totals. */
+  summaryOnly?: string;
 }
+
+const SUMMARY_ONLY_PAGE_SIZE = 1;
+const RESULTS_KEY = 'results';
 
 const PLACEHOLDER = /\{([a-z0-9_]+)\}/g;
 
@@ -84,6 +89,7 @@ export function forwardedArgs(route: BackendRoute): Set<string> {
   }
   if (route.spread) keys.add(route.spread);
   if (route.preview) keys.add(route.preview);
+  if (route.summaryOnly) keys.add(route.summaryOnly);
   return keys;
 }
 
@@ -144,6 +150,8 @@ export function buildRequest(route: BackendRoute, args: Record<string, unknown>)
       }
     }
   }
+  // The totals cover every row whatever the page; one row keeps the answer small.
+  if (route.summaryOnly && args[route.summaryOnly] === true) query.page_size = SUMMARY_ONLY_PAGE_SIZE;
   return { method: request.method, path, query, body };
 }
 
@@ -213,7 +221,11 @@ export function registerRoutedTools(
     registerBackendTool(server, client, shown, annotationsOf(name, route), async (c, args) => {
       const { method, path, query, body } = buildRequest(route, args);
       const data = await rawFetch(c, path, { method, query, body });
-      const kept = omitted.size ? omitKeys(data, omitted) : data;
+      const isSummaryOnly = route.summaryOnly !== undefined && args[route.summaryOnly] === true;
+      const summarized = isSummaryOnly && data && typeof data === 'object' && !Array.isArray(data)
+        ? Object.fromEntries(Object.entries(data).filter(([key]) => key !== RESULTS_KEY))
+        : data;
+      const kept = omitted.size ? omitKeys(summarized, omitted) : summarized;
       const previewChars = route.preview ? args[route.preview] : undefined;
       return typeof previewChars === 'number' && previewChars > 0 ? truncateStrings(kept, previewChars) : kept;
     }, { ...routedContract(name, route, published), name: shown });

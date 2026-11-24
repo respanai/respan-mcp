@@ -102,8 +102,8 @@ const TERM_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
   label: ['tag'],
   byok: ['integration'],
   credential: ['integration'],
-  eval: ['evaluator', 'grader', 'experiment'],
-  evaluation: ['evaluator', 'grader', 'experiment'],
+  eval: ['evaluator', 'grader', 'dataset', 'experiment'],
+  evaluation: ['evaluator', 'grader', 'dataset', 'experiment'],
 };
 /** Words that carry no tool meaning and match every description. */
 const STOP_WORDS: ReadonlySet<string> = new Set([
@@ -241,7 +241,7 @@ export function applyToolIndex(server: McpServer, listAll: boolean): void {
       + 'The best matches come with their full input schema. Folded second-line groups (see the server instructions) '
       + 'are searched when the keywords name the group, or with include_folded=true.',
     inputSchema: {
-      keywords: z.string().describe("Resource and action words, e.g. 'dataset log create' or 'experiment run'; or 'select:name_a,name_b' for exact tool names."),
+      keywords: z.string().describe("Resource and action words, e.g. 'dataset log create' or 'dataset version compare'; or 'select:name_a,name_b' for exact tool names."),
       include_folded: z.boolean().optional().describe('Also search the folded second-line groups (full search).'),
     },
     annotations: READ_ONLY_WORKSPACE_TOOL,
