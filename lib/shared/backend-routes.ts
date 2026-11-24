@@ -280,7 +280,7 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   thread_summary: { requests: [{ method: 'POST', path: '/clickhouse/threads/summary/', query: ['start_time', 'end_time', 'environment', 'is_workspace_level', 'workspace'], body: ['filters'] }] },
   trace_get: { requests: [{ method: 'GET', path: '/api/traces/{trace_id}/', query: ['is_workspace_level', 'workspace'] }] },
   trace_list: { requests: [{ method: 'POST', path: '/api/traces/list/', query: ['page', 'page_size', 'sort_by', 'start_time', 'end_time', 'environment', 'is_workspace_level', 'workspace'], body: ['filters'] }] },
-  trace_summary: { requests: [{ method: 'POST', path: '/clickhouse/traces/summary/', query: ['start_time', 'end_time', 'environment', 'is_workspace_level', 'workspace'], body: ['filters', 'topic_counts'] }] },
+  trace_summary: { requests: [{ method: 'POST', path: '/clickhouse/traces/summary/', query: ['start_time', 'end_time', 'environment', 'is_workspace_level', 'workspace', 'group_by', 'page', 'page_size'], body: ['filters', 'topic_counts', 'behavior_columns', 'is_including_behavior_final_score'] }] },
   webhook_config_create: { requests: [{ method: 'POST', path: '/api/webhooks/', body: ['name', 'url', 'event_type', 'organization_key', 'active'] }] },
   webhook_config_delete: { requests: [{ method: 'DELETE', path: '/api/webhooks/{webhook_id}/' }], destructive: true },
   webhook_config_get: { requests: [{ method: 'GET', path: '/api/webhooks/{webhook_id}/' }] },
