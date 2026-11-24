@@ -73,8 +73,7 @@
        "variants": {
         "type": "array",
         "minItems": 1,
-        "maxItems": 5,
-        "description": "Split tests only: several variants at once, each on its own model and share of sessions; the rest stay on the primary. Left out, the test has one variant, `variant`, on the workflow's model. A shadow test takes no variants.",
+        "description": "Split tests only: several variants at once, each on its own model and share of sessions; the rest stay on the primary. Up to 5 by default; the API refuses more than the project's limit. Left out, the test has one variant, `variant`, on the workflow's model. A shadow test takes no variants.",
         "items": {
          "type": "object",
          "properties": {
