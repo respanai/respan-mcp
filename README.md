@@ -157,9 +157,9 @@ returns the server's answer; the server validates, defaults and shapes. A
 tool's schema lists only the arguments its route sends. Experiment, dataset
 version and dataset eval-run tools pass `is_scoring_behaviors` and
 `behavior_keys` through as the in-product agent does, so behavior scoring follows
-the backend's default unless the caller turns it off. Simulation, red-team and
-suggestion tools are not served, and credential fields are stripped from every
-result.
+the backend's default unless the caller turns it off. Simulation and red-team
+tools read and manage existing runs but cannot start one, suggestion tools are
+not served, and credential fields are stripped from every result.
 
 **Read-only connections** (OAuth without "Also allow changes", or
 `/mcp/readonly`) see only tools annotated read-only; `tool_run` refuses the rest
