@@ -6078,9 +6078,9 @@
      },
      "behavior_granularity": {
       "type": "string",
-      "description": "Break the behavior counts into time buckets (minute or hour); needs behavior_columns or behavior_polarity_counts."
+      "description": "Break the behavior counts into time buckets (minute or hour); needs behavior_columns or is_including_behavior_polarity_counts."
      },
-     "behavior_polarity_counts": {
+     "is_including_behavior_polarity_counts": {
       "type": "boolean",
       "description": "Add per-polarity (positive/neutral/negative) behavior span counts."
      }
