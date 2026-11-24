@@ -11070,7 +11070,7 @@
   },
   {
    "name": "trace_summary",
-   "description": "Get aggregate trace statistics (server-side, NO pagination). Use instead of trace_list when you need counts or totals — not individual entries. RETURNS: number_of_requests (trace count), total_count, total_cost (USD), total_tokens, total_prompt_tokens, total_completion_tokens, total_span_count, total_llm_call_count, total_error_count (failed spans across all traces), errored_trace_count (traces with >= 1 failed span), error_percentage (errored_trace_count / trace count * 100), total_duration (seconds). Supports time range, environment, and field filters (same format as trace_list). Use for: 'how many traces', 'total trace cost', 'total errors across traces', 'total span count', 'how many traces errored', 'trace error rate', 'traces with duration > 10s'. COMPARE: pass group_by (a metadata key as metadata__<key>, or prompt_version_number) to also get `groups`: one per value, in first-seen order, each with value, first_seen, total_count, total_cost, total_duration and, with behavior_columns, behavior_summary (true_counts, scored_counts, average_final_score). Filters apply to every group. Example, compare one config's versions: filters {\"metadata__config\": {\"operator\": \"\", \"value\": \"support-bot\"}}, group_by \"metadata__version\". List metadata keys and values with the trace filter options.",
+   "description": "Get aggregate trace statistics (server-side, NO pagination). Use instead of trace_list when you need counts or totals — not individual entries. RETURNS: number_of_requests (trace count), total_count, total_cost (USD), total_tokens, total_prompt_tokens, total_completion_tokens, total_span_count, total_llm_call_count, total_error_count (failed spans across all traces), errored_trace_count (traces with >= 1 failed span), error_percentage (errored_trace_count / trace count * 100), total_duration (seconds). Supports time range, environment, and field filters (same format as trace_list). Use for: 'how many traces', 'total trace cost', 'total errors across traces', 'total span count', 'how many traces errored', 'trace error rate', 'traces with duration > 10s'. COMPARE: pass group_by (a metadata key as metadata__<key>, or prompt_version_number) to get a paginated list instead (results, count, next, previous; page / page_size): one summary per value with the fields above, the value in metadata ({key: value}) or prompt_version_number, ordered by when each value first appeared, plus behavior_summary (true_counts, scored_counts, average_final_score) with behavior_columns. Filters apply to every result. Example, compare one config's versions: filters {\"metadata__config\": {\"operator\": \"\", \"value\": \"support-bot\"}}, group_by \"metadata__version\". List metadata keys and values with the trace filter options.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -11110,14 +11110,22 @@
      },
      "group_by": {
       "type": "string",
-      "description": "Group the summary by one key: metadata__<key> (any metadata key you send, e.g. metadata__version) or prompt_version_number. Adds `groups`, one per value (up to 100), in first-seen order."
+      "description": "Group the summary by one key: metadata__<key> (any metadata key you send, e.g. metadata__version) or prompt_version_number. Returns a paginated list of summaries, one per value, ordered by when each value first appeared."
+     },
+     "page": {
+      "type": "integer",
+      "description": "Page number, 1-based (server default when omitted)."
+     },
+     "page_size": {
+      "type": "integer",
+      "description": "Rows per page (server default when omitted; the server enforces its own maximum)."
      },
      "behavior_columns": {
       "type": "array",
       "items": {
        "type": "string"
       },
-      "description": "Behaviors to count per trace (built-in names such as refusal, task_complete, instruction_miss, or a custom behavior id). Adds behavior_summary, and per group with group_by."
+      "description": "Behaviors to count per trace (built-in names such as refusal, task_complete, instruction_miss, or a custom behavior id). Adds behavior_summary (to each result with group_by)."
      },
      "is_including_behavior_final_score": {
       "type": "boolean",
