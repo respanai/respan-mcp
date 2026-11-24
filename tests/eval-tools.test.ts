@@ -95,3 +95,21 @@ describe('dataset_log_list', () => {
     expect(data.results[0].input).toBe('a long input value');
   });
 });
+
+// The backend's WorkflowVersionType values. An unknown `type` query matches
+// nothing, and no `type` lists every kind of workflow.
+const WORKFLOW_TYPES = ['automations', 'monitors', 'evaluators', 'reports', 'exports', 'ingests'];
+const WORKFLOW_LIST_TOOLS = Object.entries(BACKEND_ROUTES).filter(([, route]) =>
+  route.requests.some((request) => request.path === '/api/workflows/list/'));
+
+describe('workflow lists', () => {
+  it('finds the four workflow list routes', () => {
+    expect(WORKFLOW_LIST_TOOLS.map(([name]) => name).sort()).toEqual(['automation_list', 'evaluator_list', 'monitor_list', 'report_list']);
+  });
+
+  it.each(WORKFLOW_LIST_TOOLS)('%s pins one real workflow type', (name, route) => {
+    const { query } = buildRequest(route, {});
+    expect(WORKFLOW_TYPES).toContain(query.type);
+    expect(query.type).toBe(`${name.replace(/_list$/, '')}s`);
+  });
+});
