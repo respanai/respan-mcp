@@ -52,7 +52,7 @@
          "shadow",
          "split"
         ],
-        "description": "`shadow` (default): users always get the primary answer; each sampled session is replayed on the variant in the background, about a minute after it goes quiet. `split`: real users in the sampled share are served by a variant's model, on every turn of their session. A project serves one split test at a time: a newer one waits until the older one ends."
+        "description": "`shadow` (default): users always get the primary answer; each sampled session is replayed on the variant in the background, about a minute after it goes quiet. `split`: real users in the sampled share are served by a variant's model, on every turn of their session. A project serves one split test at a time: a newer one waits until the older one ends or is paused."
        },
        "sample_rate_basis_points": {
         "type": "integer",
@@ -178,7 +178,7 @@
   },
   {
    "name": "ab_test_summary",
-   "description": "An A/B test's results, side by side. sides: one entry per side (`primary`, then each variant by name) with its model, sessions, calls, cost_usd, avg_latency_seconds (per call), total_tokens and average_final_score (null when no behaviors score it). spent_usd is what counts toward budget_usd. Also the test's state (running, paused or ended), live_sampling_stop_reason, skipped_sessions and failure_causes. A shadow test's sides come from its sessions dataset (primary: what users got; variant: the replays of the same sessions); a split test's from its live calls by metadata.ab_test_side (calls, cost and spend over the whole test; a split side's sessions over its last 31 days). Reads only.",
+   "description": "An A/B test's results, side by side. sides: one entry per side (`primary`, then each variant by name) with its model, sessions, calls, cost_usd, avg_latency_seconds (per call), total_tokens and average_final_score (shadow tests' behavior score; null for split sides and unscored ones). spent_usd is what counts toward budget_usd. Also the test's state (running, paused or ended), live_sampling_stop_reason, skipped_sessions and failure_causes. A shadow test's sides come from its sessions dataset (primary: what users got; variant: the replays of the same sessions); a split test's from its live calls by metadata.ab_test_side (calls, cost and spend over the whole test; a split side's sessions over its last 31 days). Reads only.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -195,7 +195,7 @@
   },
   {
    "name": "ab_test_update",
-   "description": "Change a running test, one of two ways per call. status `paused` stops taking new sessions (nothing more is spent; sessions already replaying finish) and `resumed` takes them again. live_sampling extends it: a higher budget_usd lets the variant spend more, a later expires_at keeps it running longer. Its rate, mode and variants never change (400): stop it and start a new test. Returns the test. To end it for good use ab_test_stop.",
+   "description": "Change a running test, one of two ways per call. status `paused` stops taking new sessions (calls and replays already under way finish and bill) and `resumed` takes them again. live_sampling extends it: a higher budget_usd lets the variant spend more, a later expires_at keeps it running longer. Its rate, mode and variants never change (400): stop it and start a new test. Returns the test. To end it for good use ab_test_stop.",
    "inputSchema": {
     "type": "object",
     "properties": {
