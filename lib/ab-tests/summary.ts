@@ -12,20 +12,18 @@ import { READ_ONLY_WORKSPACE_TOOL } from '../shared/tool-result.js';
 const SIDE_PRIMARY = 'primary';
 const DEFAULT_VARIANT = 'variant';
 const SPLIT = 'split';
-/** running_status in plain words: `pending` is a test still sampling. */
-const STATES: Record<string, string> = { pending: 'running', paused: 'paused', completed: 'ended' };
 /** A split test's calls are read from its start to a minute from now. */
 const WINDOW_END_SLACK_MS = 60_000;
 
 type Json = Record<string, any>;
 
+/** One side, in the summary endpoints' own keys. */
 interface Side {
-  side: string;
   model: string | null;
-  sessions: number | null;
-  calls: number | null;
-  cost_usd: number | null;
-  avg_latency_seconds: number | null;
+  total_count: number | null;
+  number_of_requests: number | null;
+  total_cost: number | null;
+  avg_latency: number | null;
   total_tokens: number | null;
   average_final_score: number | null;
 }
@@ -37,21 +35,21 @@ async function getJson(client: AuthenticatedClient, path: string, init: Paramete
   return result && typeof result === 'object' && !Array.isArray(result) ? (result as Json) : {};
 }
 
-function datasetSide(side: string, model: string | null, summary: Json, sessions: number | null): Side {
+function side(model: string | null, summary: Json, totalCount: number | null): Side {
   return {
-    side,
     model,
-    sessions,
-    calls: summary.number_of_requests ?? null,
-    cost_usd: summary.total_cost ?? null,
-    avg_latency_seconds: summary.avg_latency ?? null,
+    total_count: totalCount,
+    number_of_requests: summary.number_of_requests ?? null,
+    total_cost: summary.total_cost ?? null,
+    avg_latency: summary.avg_latency ?? null,
     total_tokens: summary.total_tokens ?? null,
+    // A split side's calls summary has no final score: it is not scored.
     average_final_score: summary.final_score_summary?.average_final_score ?? null,
   };
 }
 
 /** Primary = the sessions dataset's rows (what users got), variant = the replays of the same sessions. */
-async function shadowSides(client: AuthenticatedClient, test: Json) {
+async function shadowSides(client: AuthenticatedClient, test: Json): Promise<Record<string, Side>> {
   // A test whose sessions dataset was deleted has its replays only.
   const baseline = test.source_dataset ? String(test.source_dataset) : null;
   const [primary, variant, comparison] = await Promise.all([
@@ -64,8 +62,10 @@ async function shadowSides(client: AuthenticatedClient, test: Json) {
       : Promise.resolve({} as Json),
   ]);
   const sessions = comparison.total_count ?? null;
-  const variantSide = datasetSide(DEFAULT_VARIANT, test.run_config?.model ?? null, variant, sessions);
-  return { sides: [datasetSide(SIDE_PRIMARY, null, primary, sessions), variantSide], spent_usd: variantSide.cost_usd };
+  return {
+    [SIDE_PRIMARY]: side(null, primary, sessions),
+    [DEFAULT_VARIANT]: side(test.run_config?.model ?? null, variant, sessions),
+  };
 }
 
 /**
@@ -73,52 +73,40 @@ async function shadowSides(client: AuthenticatedClient, test: Json) {
  * calls themselves for calls, cost and latency (a session may hold calls
  * another test served), the sessions summary for how many sessions.
  */
-async function splitSides(client: AuthenticatedClient, test: Json, sampling: Json) {
+async function splitSides(client: AuthenticatedClient, test: Json, sampling: Json): Promise<Record<string, Side>> {
   const variants: Json[] = sampling.variants?.length ? sampling.variants : [{ name: DEFAULT_VARIANT, model: test.run_config?.model ?? null }];
   const query = { start_time: String(test.created_at), end_time: new Date(Date.now() + WINDOW_END_SLACK_MS).toISOString() };
   const named: Array<[string, string | null]> = [[SIDE_PRIMARY, null], ...variants.map((v): [string, string | null] => [v.name, v.model ?? null])];
-  const sides = await Promise.all(named.map(async ([side, model]): Promise<Side> => {
+  const sides = await Promise.all(named.map(async ([name, model]): Promise<[string, Side]> => {
     const body = { filters: {
       metadata__ab_test_id: { operator: '', value: test.id },
-      metadata__ab_test_side: { operator: '', value: side },
+      metadata__ab_test_side: { operator: '', value: name },
     } };
     const [calls, sessions] = await Promise.all([
       getJson(client, '/api/request-logs/summary/', { method: 'POST', query, body }),
       getJson(client, '/clickhouse/threads/summary/', { method: 'POST', query, body }),
     ]);
-    return {
-      side,
-      model,
-      sessions: sessions.total_count ?? null,
-      calls: calls.number_of_requests ?? null,
-      cost_usd: calls.total_cost ?? null,
-      avg_latency_seconds: calls.avg_latency ?? null,
-      total_tokens: calls.total_tokens ?? null,
-      average_final_score: null,
-    };
+    return [name, side(model, calls, sessions.total_count ?? null)];
   }));
-  const spent = sides.filter((s) => s.side !== SIDE_PRIMARY).reduce((sum, s) => sum + (s.cost_usd ?? 0), 0);
-  return { sides, spent_usd: spent };
+  return Object.fromEntries(sides);
 }
 
 export async function summarizeAbTest(client: AuthenticatedClient, abTestId: string): Promise<Json> {
   const test = await getJson(client, `/api/datasets/${enc(abTestId)}/versions/${enc(abTestId)}/`, { method: 'GET' });
   const sampling: Json = test.run_config?.live_sampling ?? {};
   const mode = sampling.mode ?? 'shadow';
-  const sides = mode === SPLIT ? await splitSides(client, test, sampling) : await shadowSides(client, test);
   return {
     id: test.id,
     name: test.name,
     mode,
-    state: STATES[test.running_status] ?? null,
-    running_status: test.running_status,
+    running_status: test.running_status ?? null,
     live_sampling_stop_reason: test.live_sampling_stop_reason ?? null,
-    sample_rate_basis_points: sampling.sample_rate_basis_points ?? null,
+    sampling_rate: sampling.sampling_rate ?? null,
     budget_usd: sampling.budget_usd ?? null,
     expires_at: sampling.expires_at ?? null,
     skipped_sessions: test.skipped_sessions ?? null,
     failure_causes: test.failure_causes ?? [],
-    ...sides,
+    ab_test_side: mode === SPLIT ? await splitSides(client, test, sampling) : await shadowSides(client, test),
   };
 }
 
