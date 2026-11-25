@@ -2,13 +2,13 @@
  "tools": [
   {
    "name": "ab_test_create",
-   "description": "Start a session A/B test on live traffic. It starts at once and spends money: in shadow mode every sampled session is replayed on the variant and billed to the project, users unaffected; in split mode real users in the sampled share get the variant's answers, billed as usual. Either way it stops at budget_usd or expires_at. dataset_id is a sessions dataset that collects the sampled sessions: create one with dataset_create (granularity `sessions`, is_empty true), one per test. Only requests that send a session id take part. Returns the test; its id is the ab_test_id of the other ab_test_* tools. Only when the user asked to start this test.",
+   "description": "Start a session A/B test on live traffic. It starts at once and spends money: in shadow mode every sampled session is replayed on the variant and billed to the project, users unaffected; in split mode real users in the sampled share get the variant's answers, billed as usual. Either way it stops at budget_usd or expires_at. Left without dataset_id, the test makes its own sessions dataset to collect the sampled sessions (then name is required). Only requests that send a session id take part. Returns the test; its id is the ab_test_id of the other ab_test_* tools. Only when the user asked to start this test.",
    "inputSchema": {
     "type": "object",
     "properties": {
      "dataset_id": {
       "type": "string",
-      "description": "The sessions dataset (granularity `sessions`) that collects the sampled sessions."
+      "description": "Optional: an existing empty sessions dataset (granularity `sessions`) to collect the sampled sessions. Left out, the test makes its own."
      },
      "name": {
       "type": "string",
@@ -20,7 +20,7 @@
       "items": {
        "type": "object"
       },
-      "description": "The variant, as one step: [{\"type\": \"completion\", \"config\": {\"model\": \"gpt-4.1-mini\"}}] for a model, or a prompt step with a pinned version. Split variants each replace its model with their own."
+      "description": "The variant, as one step: [{\"type\": \"completion\", \"config\": {\"model\": \"gpt-4.1-mini\"}}] for a model, or a prompt step with a pinned version. Split variants each replace its model with their own. Optional when live_sampling.variants each name a model."
      },
      "behavior_settings": {
       "type": "array",
@@ -54,11 +54,11 @@
         ],
         "description": "`shadow` (default): users always get the primary answer; each sampled session is replayed on the variant in the background, about a minute after it goes quiet. `split`: real users in the sampled share are served by a variant's model, on every turn of their session. A project serves one split test at a time: a newer one waits until the older one ends or is paused."
        },
-       "sample_rate_basis_points": {
-        "type": "integer",
-        "minimum": 1,
-        "maximum": 10000,
-        "description": "Share of the project's live sessions in the test, in basis points: 100 is 1%, 10000 is all. Only requests that send a session id take part. Required without variants; with them it is their shares' sum and may be left out."
+       "sampling_rate": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "maximum": 1,
+        "description": "Share of the project's live sessions in the test, from 0 to 1: 0.2 is 20%. Only requests that send a session id take part. Required without variants; with them it is their sum and may be left out."
        },
        "budget_usd": {
         "type": "number",
@@ -85,17 +85,17 @@
            "type": "string",
            "description": "The model this variant's sessions are served on."
           },
-          "share_basis_points": {
-           "type": "integer",
-           "minimum": 1,
-           "maximum": 10000,
-           "description": "Its share of live sessions, in basis points."
+          "sampling_rate": {
+           "type": "number",
+           "exclusiveMinimum": 0,
+           "maximum": 1,
+           "description": "Its share of live sessions, from 0 to 1."
           }
          },
          "required": [
           "name",
           "model",
-          "share_basis_points"
+          "sampling_rate"
          ]
         }
        }
@@ -107,8 +107,6 @@
      }
     },
     "required": [
-     "dataset_id",
-     "workflow",
      "live_sampling"
     ]
    },
@@ -116,7 +114,7 @@
   },
   {
    "name": "ab_test_get",
-   "description": "Read one A/B test's setup and state: run_config (the variant's workflow and model, live_sampling with mode, sample rate, budget, end date and variants), running_status (`pending` = running and sampling, `paused`, `completed` = ended; ignore run_state), live_sampling_stop_reason, skipped_sessions (sessions left out because the test hit its hourly replay cap) and failure_causes. final_score_summary covers a shadow test's replays only; for both sides' cost, latency and sessions use ab_test_summary. Reads only.",
+   "description": "Read one A/B test's setup and state: run_config (the variant's workflow and model, live_sampling with mode, sample rate, budget, end date and variants), running_status (running, paused or stopped; ignore run_state), live_sampling_stop_reason, skipped_sessions (sessions left out because the test hit its hourly replay cap) and failure_causes. final_score_summary covers a shadow test's replays only; for both sides' cost, latency and sessions use ab_test_summary. Reads only.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -133,13 +131,13 @@
   },
   {
    "name": "ab_test_list",
-   "description": "List the project's session A/B tests, newest first. Each entry has the test's id, name, source_dataset (its sessions dataset), running_status (`pending` = running, `paused`, `completed` = ended), live_sampling_stop_reason (stopped, budget, expired or null), run_config.live_sampling (mode, sample rate, budget, end date, variants), run_config.model and skipped_sessions. Use ab_test_summary for a test's results. Reads only.",
+   "description": "List the project's session A/B tests, newest first. Each entry has the test's id, name, source_dataset (its sessions dataset), running_status (running, paused or stopped), live_sampling_stop_reason (stopped, budget, expired or null), run_config.live_sampling (mode, sample rate, budget, end date, variants), run_config.model and skipped_sessions. Use ab_test_summary for a test's results. Reads only.",
    "inputSchema": {
     "type": "object",
     "properties": {
      "filters": {
       "type": "object",
-      "description": "Each key a field, each value {\"operator\": \"<op>\", \"value\": <val>}. Fields: running_status ([\"pending\"], [\"paused\"], [\"completed\"]), source_dataset_id, run_config__model, name, created_at, created_by__email. Any other field returns 400. Example: {\"running_status\": {\"operator\": \"\", \"value\": [\"paused\"]}}"
+      "description": "Each key a field, each value {\"operator\": \"<op>\", \"value\": <val>}. Fields: running_status ([\"running\"], [\"paused\"], [\"stopped\"]), source_dataset_id, run_config__model, name, created_at, created_by__email. Any other field returns 400. Example: {\"running_status\": {\"operator\": \"\", \"value\": [\"paused\"]}}"
      },
      "page": {
       "type": "integer",
@@ -178,7 +176,7 @@
   },
   {
    "name": "ab_test_summary",
-   "description": "An A/B test's results, side by side. sides: one entry per side (`primary`, then each variant by name) with its model, sessions, calls, cost_usd, avg_latency_seconds (per call), total_tokens and average_final_score (shadow tests' behavior score; null for split sides and unscored ones). spent_usd is what counts toward budget_usd. Also the test's state (running, paused or ended), live_sampling_stop_reason, skipped_sessions and failure_causes. A shadow test's sides come from its sessions dataset (primary: what users got; variant: the replays of the same sessions); a split test's from its live calls by metadata.ab_test_side (calls, cost and spend over the whole test; a split side's sessions over its last 31 days). Reads only.",
+   "description": "An A/B test's results, side by side. ab_test_side: one entry per side (`primary`, then each variant by name) with its model, total_count (sessions), number_of_requests, total_cost, avg_latency (seconds per call), total_tokens and average_final_score (shadow tests' behavior score; null for split sides and unscored ones). The variant sides' total_cost is what counts toward budget_usd. Also the test's running_status (running, paused or stopped), live_sampling_stop_reason, skipped_sessions and failure_causes. A shadow test's sides come from its sessions dataset (primary: what users got; variant: the replays of the same sessions); a split test's from its live calls by metadata.ab_test_side (calls, cost and spend over the whole test; a split side's sessions over its last 31 days). Reads only.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -195,7 +193,7 @@
   },
   {
    "name": "ab_test_update",
-   "description": "Change a running test, one of two ways per call. status `paused` stops taking new sessions (calls and replays already under way finish and bill) and `resumed` takes them again. live_sampling extends it: a higher budget_usd lets the variant spend more, a later expires_at keeps it running longer. Its rate, mode and variants never change (400): stop it and start a new test. Returns the test. To end it for good use ab_test_stop.",
+   "description": "Change a running test, one of two ways per call. status `paused` stops taking new sessions (calls and replays already under way finish and bill) and `running` takes them again. live_sampling extends it: a higher budget_usd lets the variant spend more, a later expires_at keeps it running longer. Its rate, mode and variants never change (400): stop it and start a new test. Returns the test. To end it for good use ab_test_stop.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -207,7 +205,7 @@
       "type": "string",
       "enum": [
        "paused",
-       "resumed"
+       "running"
       ],
       "description": "Pause or resume. Send it alone."
      },

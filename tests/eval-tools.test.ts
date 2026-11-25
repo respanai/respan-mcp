@@ -90,7 +90,7 @@ describe('dataset tools the eval flow needs', () => {
 
   it('cancels a run as the agent does', () => {
     expect(buildRequest(BACKEND_ROUTES.dataset_version_cancel, { dataset_id: 'v2' }))
-      .toMatchObject({ method: 'PATCH', path: '/api/datasets/v2/run/', body: { status: 'cancelled' } });
+      .toMatchObject({ method: 'PATCH', path: '/api/datasets/v2/run/', body: { status: 'stopped' } });
     expect(BACKEND_ROUTES.dataset_version_cancel.destructive).toBe(true);
   });
 

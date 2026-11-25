@@ -14,11 +14,15 @@ const BREAKDOWN_UNSUPPORTED_FILTERS = ['behaviors', 'topics', 'fault_domain', 'm
 const MODEL_PRICE_COLUMNS = ['input_cost', 'output_cost', 'input_price_unit', 'output_price_unit', 'cache_hit_input_cost', 'cache_creation_input_cost', 'image_output_cost', 'image_input_cost', 'audio_input_cost', 'audio_output_cost', 'cost_tiers', 'service_tier_prices', 'time_cost_schedule'];
 
 export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
-  ab_test_create: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/versions/', body: ['name', 'workflow', 'behavior_settings', 'live_sampling'] }] },
+  // Without dataset_id, the dataset create makes the test's own sessions dataset.
+  ab_test_create: { requests: [
+    { method: 'POST', path: '/api/datasets/{dataset_id}/versions/', body: ['name', 'workflow', 'behavior_settings', 'live_sampling'], when: 'dataset_id' },
+    { method: 'POST', path: '/api/datasets/', body: ['name', 'workflow', 'behavior_settings', 'live_sampling'] },
+  ] },
   ab_test_get: { requests: [{ method: 'GET', path: '/api/datasets/{ab_test_id}/versions/{ab_test_id}/' }] },
   ab_test_list: { requests: [{ method: 'POST', path: '/api/datasets/list/', query: ['const:is_ab_test=true', 'page', 'page_size'], body: ['filters'] }] },
   // Ends the test for good; a split test's users all go back to the primary.
-  ab_test_stop: { requests: [{ method: 'PATCH', path: '/api/datasets/{ab_test_id}/run/', body: ['const:status=cancelled'] }], destructive: true },
+  ab_test_stop: { requests: [{ method: 'PATCH', path: '/api/datasets/{ab_test_id}/run/', body: ['const:status=stopped'] }], destructive: true },
   // status (pause, resume) or live_sampling (a later end, a higher budget): one per call.
   ab_test_update: { requests: [{ method: 'PATCH', path: '/api/datasets/{ab_test_id}/run/', body: ['status'], when: 'status' }, { method: 'PATCH', path: '/api/datasets/{ab_test_id}/', body: ['live_sampling'], when: 'live_sampling' }], oneWhen: true },
   annotation_item_get: { requests: [{ method: 'GET', path: '/api/annotation-items/{item_id}/' }] },
@@ -87,7 +91,7 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   dataset_log_summary: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/logs/summary/', body: ['filters'] }] },
   dataset_log_verdict_update: { requests: [{ method: 'PATCH', path: '/api/datasets/{dataset_id}/logs/{unique_id}/behaviors/{behavior_key}/', body: ['prob'] }] },
   dataset_log_update: { requests: [{ method: 'PATCH', path: '/api/datasets/{dataset_id}/logs/{unique_id}/', body: ['input', 'output', 'expected_output', 'metadata', 'metrics', 'variables'] }] },
-  dataset_version_cancel: { requests: [{ method: 'PATCH', path: '/api/datasets/{dataset_id}/run/', body: ['const:status=cancelled'] }], destructive: true },
+  dataset_version_cancel: { requests: [{ method: 'PATCH', path: '/api/datasets/{dataset_id}/run/', body: ['const:status=stopped'] }], destructive: true },
   dataset_version_comparison_get: { requests: [{ method: 'GET', path: '/api/datasets/{dataset_id}/versions/comparison/', query: ['version_ids', 'baseline_version_id', 'row_filter', 'sort', 'page', 'page_size'] }], summaryOnly: 'is_summary_only' },
   dataset_version_create: { requests: [{ method: 'POST', path: '/api/datasets/{dataset_id}/versions/', body: ['workflow', 'name', 'behavior_settings', 'sample_size'] }] },
   dataset_version_estimate: { requests: [{ method: 'GET', path: '/api/datasets/{dataset_id}/versions/estimate/', query: ['models', 'sample_size'] }] },
