@@ -279,7 +279,7 @@ export const BACKEND_ROUTES: Readonly<Record<string, BackendRoute>> = {
   tag_get: { requests: [{ method: 'GET', path: '/api/tags/{tag_id}/' }] },
   tag_list: { requests: [{ method: 'GET', path: '/api/tags/' }] },
   tag_update: { requests: [{ method: 'PATCH', path: '/api/tags/{tag_id}/', body: ['name', 'color', 'description'] }] },
-  thread_get: { requests: [{ method: 'GET', path: '/clickhouse/threads/{session_id}/', query: ['is_workspace_level', 'workspace', 'timestamp', 'environment'] }] },
+  thread_get: { requests: [{ method: 'GET', path: '/clickhouse/threads/{session_identifier}/', query: ['is_workspace_level', 'workspace', 'timestamp', 'environment'] }] },
   thread_list: { requests: [{ method: 'POST', path: '/clickhouse/threads/list/', query: ['page', 'page_size', 'sort_by', 'start_time', 'end_time', 'environment', 'is_workspace_level', 'workspace'], body: ['filters'] }] },
   thread_summary: { requests: [{ method: 'POST', path: '/clickhouse/threads/summary/', query: ['start_time', 'end_time', 'environment', 'is_workspace_level', 'workspace'], body: ['filters'] }] },
   trace_get: { requests: [{ method: 'GET', path: '/api/traces/{trace_id}/', query: ['is_workspace_level', 'workspace'] }] },

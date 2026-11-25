@@ -65,7 +65,7 @@ export const TOOL_ALIASES: Readonly<Record<string, string>> = {
 
 /**
  * Old argument names, per tool → the public name that replaced them. One
- * name per id: `span_id` (one LLM call or step), `trace_id`, `session_id`;
+ * name per id: `span_id` (one LLM call or step), `trace_id`, `session_identifier`;
  * booleans take `is_` (`is_including_behavior_polarity_counts`).
  * Deprecated: kept so saved prompts keep working, and logged when used.
  */
@@ -74,7 +74,7 @@ export const ARGUMENT_ALIASES: Readonly<Record<string, Readonly<Record<string, s
   log_summary: { behavior_polarity_counts: "is_including_behavior_polarity_counts" },
   log_score_list: { log_id: "span_id" },
   score_create: { log_id: "span_id" },
-  thread_get: { thread_identifier: "session_id" },
+  thread_get: { session_id: "session_identifier", thread_identifier: "session_identifier", thread_id: "session_identifier" },
 };
 
 /** The deprecated argument names `args` uses for `tool` (a current name). */

@@ -104,13 +104,20 @@ describe('tool aliases', () => {
     expect(rewriteArguments('score_create', both)).toEqual(['log_id']);
     expect(both).toEqual({ span_id: 'new', evaluator_id: 'e' });
     expect(rewriteArguments('trace_list', { unique_id: 'x' })).toEqual([]);
+
+    // session_identifier is the session name; the old ones still reach it.
+    for (const old of ['session_id', 'thread_identifier', 'thread_id']) {
+      const args: Record<string, unknown> = { [old]: 's1' };
+      expect(rewriteArguments('thread_get', args)).toEqual([old]);
+      expect(args).toEqual({ session_identifier: 's1' });
+    }
   });
 
   it('sends score_create\'s span_id as log_id', () => {
     const { body } = buildRequest(BACKEND_ROUTES.score_create, { span_id: 's1', evaluator_id: 'e1', boolean_value: true });
     expect(body).toEqual({ log_id: 's1', evaluator_id: 'e1', boolean_value: true });
     expect(buildRequest(BACKEND_ROUTES.log_get, { span_id: 'a/b' }).path).toBe('/clickhouse/request-logs/a%2Fb/');
-    expect(buildRequest(BACKEND_ROUTES.thread_get, { session_id: 'chat 1' }).path).toBe('/clickhouse/threads/chat%201/');
+    expect(buildRequest(BACKEND_ROUTES.thread_get, { session_identifier: 'chat 1' }).path).toBe('/clickhouse/threads/chat%201/');
   });
 
   it('sends log_summary\'s old polarity-counts argument under its is_including_ name', () => {
